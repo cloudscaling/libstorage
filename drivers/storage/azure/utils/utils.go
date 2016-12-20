@@ -9,7 +9,7 @@ import "github.com/codedellemc/libstorage/api/types"
 func IsAzureInstance(ctx types.Context) (bool, error) {
 	// TODO: impl for Azure, e.g. as described in
 	// http://blog.mszcool.com/index.php/2015/04/detecting-if-a-virtual-machine-runs-in-microsoft-azure-linux-windows-to-protect-your-software-when-distributed-via-the-azure-marketplace/
-	return true, nil
+	return false, nil
 }
 
 // InstanceID returns the instance ID for the local host.

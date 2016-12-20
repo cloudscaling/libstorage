@@ -10,8 +10,6 @@ import (
 	"regexp"
 	"strings"
 
-	//log "github.com/Sirupsen/logrus"
-
 	gofig "github.com/akutz/gofig/types"
 	"github.com/akutz/goof"
 
@@ -23,7 +21,6 @@ import (
 
 // driver is the storage executor for the azure storage driver.
 type driver struct {
-	name   string
 	config gofig.Config
 }
 
@@ -32,7 +29,7 @@ func init() {
 }
 
 func newDriver() types.StorageExecutor {
-	return &driver{name: azure.Name}
+	return &driver{}
 }
 
 func (d *driver) Init(ctx types.Context, config gofig.Config) error {
@@ -42,7 +39,7 @@ func (d *driver) Init(ctx types.Context, config gofig.Config) error {
 }
 
 func (d *driver) Name() string {
-	return d.name
+	return azure.Name
 }
 
 // Supported returns a flag indicating whether or not the platform
@@ -51,7 +48,6 @@ func (d *driver) Name() string {
 func (d *driver) Supported(
 	ctx types.Context,
 	opts types.Store) (bool, error) {
-	ctx.Info("azure_executor: Supported")
 	return azureUtils.IsAzureInstance(ctx)
 }
 
@@ -59,7 +55,6 @@ func (d *driver) Supported(
 func (d *driver) InstanceID(
 	ctx types.Context,
 	opts types.Store) (*types.InstanceID, error) {
-	ctx.Info("azure_executor: InstanceID")
 	return azureUtils.InstanceID(ctx)
 }
 
@@ -69,7 +64,6 @@ var errNoAvaiDevice = goof.New("no available device")
 func (d *driver) NextDevice(
 	ctx types.Context,
 	opts types.Store) (string, error) {
-	ctx.Info("azure_executor: NextDevice")
 	// All possible device paths on Linux instances are /dev/sd[c-p]
 	letters := []string{
 		"c", "d", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p"}
@@ -113,8 +107,6 @@ var devRX = regexp.MustCompile(`^sd[a-z]$`)
 func (d *driver) LocalDevices(
 	ctx types.Context,
 	opts *types.LocalDevicesOpts) (*types.LocalDevices, error) {
-
-	ctx.Info("azure_executor: LocalDevices")
 
 	f, err := os.Open(procPartitions)
 	if err != nil {

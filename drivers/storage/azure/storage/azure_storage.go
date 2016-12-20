@@ -14,8 +14,6 @@ import (
 	"sync"
 	//"time"
 
-	//log "github.com/Sirupsen/logrus"
-
 	gofig "github.com/akutz/gofig/types"
 	"github.com/akutz/goof"
 
@@ -47,6 +45,7 @@ type driver struct {
 	resourceGroup    string
 	tenantID         string
 	storageAccount   string
+	storageAccessKey string
 	clientID         string
 	clientSecret     string
 	certPath         string
@@ -68,16 +67,22 @@ func (d *driver) Name() string {
 // Init initializes the driver.
 func (d *driver) Init(context types.Context, config gofig.Config) error {
 	d.config = config
-	d.subscriptionID = d.getSubscriptionID()
-	d.resourceGroup = d.getResourceGroup()
 	d.tenantID = d.getTenantID()
-	d.storageAccount = d.getStorageAccount()
 	d.clientID = d.getClientID()
 	d.clientSecret = d.getClientSecret()
 	d.certPath = d.getCertPath()
 	d.maxRetries = d.getMaxRetries()
 
-	context.Info("azure storage driver initialized")
+	d.storageAccount = d.getStorageAccount()
+	d.storageAccessKey = d.getStorageAccessKey()
+
+	d.subscriptionID = d.getSubscriptionID()
+	d.resourceGroup = d.getResourceGroup()
+
+	d.maxRetries = d.getMaxRetries()
+
+	context.Info("storage driver initialized")
+
 	return nil
 }
 
