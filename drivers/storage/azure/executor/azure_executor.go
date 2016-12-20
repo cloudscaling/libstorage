@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	//log "github.com/Sirupsen/logrus"
 
 	gofig "github.com/akutz/gofig/types"
 	"github.com/akutz/goof"
@@ -36,6 +36,7 @@ func newDriver() types.StorageExecutor {
 }
 
 func (d *driver) Init(ctx types.Context, config gofig.Config) error {
+	ctx.Info("azure_executor: Init")
 	d.config = config
 	return nil
 }
@@ -50,7 +51,7 @@ func (d *driver) Name() string {
 func (d *driver) Supported(
 	ctx types.Context,
 	opts types.Store) (bool, error) {
-
+	ctx.Info("azure_executor: Supported")
 	return azureUtils.IsAzureInstance(ctx)
 }
 
@@ -58,6 +59,7 @@ func (d *driver) Supported(
 func (d *driver) InstanceID(
 	ctx types.Context,
 	opts types.Store) (*types.InstanceID, error) {
+	ctx.Info("azure_executor: InstanceID")
 	return azureUtils.InstanceID(ctx)
 }
 
@@ -67,6 +69,7 @@ var errNoAvaiDevice = goof.New("no available device")
 func (d *driver) NextDevice(
 	ctx types.Context,
 	opts types.Store) (string, error) {
+	ctx.Info("azure_executor: NextDevice")
 	// All possible device paths on Linux instances are /dev/sd[c-p]
 	letters := []string{
 		"c", "d", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p"}
@@ -111,6 +114,8 @@ func (d *driver) LocalDevices(
 	ctx types.Context,
 	opts *types.LocalDevicesOpts) (*types.LocalDevices, error) {
 
+	ctx.Info("azure_executor: LocalDevices")
+
 	f, err := os.Open(procPartitions)
 	if err != nil {
 		return nil, goof.WithError("error reading "+procPartitions, err)
@@ -138,7 +143,7 @@ func (d *driver) LocalDevices(
 		ld.DeviceMap = devMap
 	}
 
-	log.WithField(ld.DeviceMap).Debug("local devices")
+	ctx.WithField("devicemap", ld.DeviceMap).Debug("local devices")
 
 	return ld, nil
 }

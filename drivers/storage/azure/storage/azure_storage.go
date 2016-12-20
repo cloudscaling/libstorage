@@ -3,21 +3,26 @@
 package storage
 
 import (
-	//"crypto/md5"
-	//"fmt"
+	"crypto/md5"
+	"crypto/rsa"
+	"crypto/x509"
+	"fmt"
 	"hash"
+	"io/ioutil"
 	"os"
 	"strings"
 	"sync"
 	//"time"
 
-	log "github.com/Sirupsen/logrus"
+	//log "github.com/Sirupsen/logrus"
 
 	gofig "github.com/akutz/gofig/types"
 	"github.com/akutz/goof"
 
-	"github.com/Azure/azure-sdk-for-go/arm/storage"
+	autorestAzure "github.com/Azure/go-autorest/autorest/azure"
+	armStorage "github.com/Azure/azure-sdk-for-go/arm/storage"
 	//azureRest "github.com/Azure/go-autorest/autorest/azure"
+	"golang.org/x/crypto/pkcs12"
 
 	"github.com/codedellemc/libstorage/api/context"
 	"github.com/codedellemc/libstorage/api/registry"
@@ -70,34 +75,127 @@ func (d *driver) Init(context types.Context, config gofig.Config) error {
 	d.clientID = d.getClientID()
 	d.clientSecret = d.getClientSecret()
 	d.certPath = d.getCertPath()
+	d.maxRetries = d.getMaxRetries()
 
-	//maxRetries := d.getMaxRetries()
-	//d.maxRetries = &maxRetries
-
-	log.Info("storage driver initialized")
+	context.Info("azure storage driver initialized")
 	return nil
 }
 
 const cacheKeyC = "cacheKey"
 
 var (
-	sessions  = map[string]*storage.AccountsClient{}
+	sessions  = map[string]*armStorage.AccountsClient{}
 	sessionsL = &sync.Mutex{}
 )
 
+func writeHkeyB(h hash.Hash, ps []byte) {
+        if ps == nil {
+                return
+        }
+        h.Write(ps)
+}
+
 func writeHkey(h hash.Hash, ps *string) {
-	if ps == nil {
-		return
-	}
-	h.Write([]byte(*ps))
+	writeHkeyB(h, []byte(*ps))
+}
+
+var (
+	errLoginMsg = "Failed to login to Azure"
+	errAuthFailed = goof.New(errLoginMsg)
+	invalideRsaPrivateKey = goof.New("PKCS#12 certificate must contain an RSA private key")
+)
+
+func decodePkcs12(pkcs []byte, password string) (*x509.Certificate, *rsa.PrivateKey, error) {
+    privateKey, certificate, err := pkcs12.Decode(pkcs, password)
+    if err != nil {
+        return nil, nil, err
+    }
+
+    rsaPrivateKey, isRsaKey := privateKey.(*rsa.PrivateKey)
+    if !isRsaKey {
+        return nil, nil, invalideRsaPrivateKey
+    }
+
+    return certificate, rsaPrivateKey, nil
 }
 
 func (d *driver) Login(ctx types.Context) (interface{}, error) {
 	sessionsL.Lock()
 	defer sessionsL.Unlock()
 
-	// TODO: impl
-	return nil, types.ErrNotImplemented
+	ctx.Debug("login to azure storage driver")
+        var (
+		hkey = md5.New()
+		ckey string
+		certData []byte
+		spt *autorestAzure.ServicePrincipalToken
+		err error
+        )
+
+	if d.tenantID == "" {
+                return nil, goof.New("Empty tenantID") 
+	}
+
+        writeHkey(hkey, &d.subscriptionID)
+        writeHkey(hkey, &d.resourceGroup)
+        writeHkey(hkey, &d.tenantID)
+        writeHkey(hkey, &d.storageAccount)
+	if d.clientID != "" && d.clientSecret != "" {
+		ctx.Debug("login to azure storage driver using clientID and clientSecret")
+	        writeHkey(hkey, &d.clientID)
+		writeHkey(hkey, &d.clientSecret)
+	} else if d.certPath != "" {
+		ctx.Debug("login to azure storage driver using clientCert")
+		// TODO: impl reading of cert
+                // TODO: impl for cert
+                certData, err = ioutil.ReadFile(d.certPath)
+                if err != nil {
+                        return nil, goof.WithError("Failed to read provided certificate file", err)
+                }
+		writeHkeyB(hkey, certData)
+	} else {
+		ctx.Error("No login information provided")
+		return nil, errAuthFailed
+	}
+	ckey = fmt.Sprintf("%x", hkey.Sum(nil))
+
+	if ac, ok := sessions[ckey]; ok {
+		ctx.WithField(cacheKeyC, ckey).Debug("using cached azure client")
+		return ac, nil
+	}
+
+	oauthConfig, err := autorestAzure.PublicCloud.OAuthConfigForTenant(d.tenantID)
+	if err != nil {
+		return nil, goof.WithError("Failed to create OAuthConfig for tenant", err)
+	}
+
+	if d.clientID != "" && d.clientSecret != "" {
+		spt, err = autorestAzure.NewServicePrincipalToken(*oauthConfig, d.clientID,
+			d.clientSecret, autorestAzure.PublicCloud.ResourceManagerEndpoint)
+                if err != nil {
+                        return nil, goof.WithError("Failed to create Service Principal Token with client ID and secret", err)
+                }
+	} else {
+		certificate, rsaPrivateKey, err := decodePkcs12(certData, "")
+		if err != nil {
+			return nil, goof.WithError("Failed to decode certificate data", err)
+		}
+
+		spt, err = autorestAzure.NewServicePrincipalTokenFromCertificate(*oauthConfig,
+			d.clientID, certificate, rsaPrivateKey,
+			autorestAzure.PublicCloud.ResourceManagerEndpoint)
+		if err != nil {
+			return nil, goof.WithError("Failed to create Service Principal Token with certificate ", err)
+                }
+	}
+
+	newAC := armStorage.NewAccountsClient(d.subscriptionID)
+	newAC.Authorizer = spt
+	sessions[ckey] = &newAC
+
+	ctx.WithField(cacheKeyC, ckey).Info("login to azure storage driver created and cached")
+
+	return &newAC, nil
 }
 
 // NextDeviceInfo returns the information about the driver's next available
