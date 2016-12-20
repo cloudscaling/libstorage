@@ -18,19 +18,23 @@ const (
 	DefaultMaxRetries = 10
 
 	// Config keys:
+  SubscriptionIDKey = "subscriptionID"
+  ResourceGroupKey  = "resourceGroup"
 	TenantIDKey       = "tenantID"
 	StorageAccountKey = "storageAccount"
 	ContainerKey      = "container"
-	CertPathKey       = "certPath"
 	ClientIDKey       = "clientID"
 	ClientSecretKey   = "clientSecret"
+	CertPathKey       = "certPath"
 	MaxRetriesKey     = "maxRetries"
 	TagKey            = "tag"
 )
 
 func init() {
 	r := gofigCore.NewRegistration("AZURE")
-	r.Key(gofig.String, "", "", "", Name+"."+TenantIDKey)
+	r.Key(gofig.String, "", "", "", Name+"."+SubscriptionIDKey)
+	r.Key(gofig.String, "", "", "", Name+"."+ResourceGroupKey)
+  r.Key(gofig.String, "", "", "", Name+"."+TenantIDKey)
 	r.Key(gofig.String, "", "", "", Name+"."+StorageAccountKey)
 	r.Key(gofig.String, "", "", "", Name+"."+ContainerKey)
 	r.Key(gofig.String, "", "", "", Name+"."+ClientIDKey)

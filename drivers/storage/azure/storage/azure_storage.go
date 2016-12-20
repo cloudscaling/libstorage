@@ -41,16 +41,16 @@ const (
 )
 
 type driver struct {
-	name           string
-	config         gofig.Config
-	maxRetries     int
-	tenantID       string
-	resourceGroup  string
-	clientID       string
-	accessKey      string
-	subscriptionID string
-	tenantID       string
-	storageAccount string
+	name             string
+	config           gofig.Config
+	subscriptionID   string
+	resourceGroup    string
+	tenantID         string
+	storageAccount   string
+	clientID         string
+	clientSecret     string
+  certPath         string
+	maxRetries       int
 }
 
 func init() {
@@ -68,15 +68,17 @@ func (d *driver) Name() string {
 // Init initializes the driver.
 func (d *driver) Init(context types.Context, config gofig.Config) error {
 	d.config = config
-	d.accessKey = d.getAccessKey()
-	if v := d.getRegion(); v != "" {
-		d.region = &v
-	}
-	if v := d.getEndpoint(); v != "" {
-		d.endpoint = &v
-	}
+  d.subscriptionID = d.getSubscriptionID()
+  d.resourceGroup = d.getResourceGroup()
+  d.tenantID = d.getTenantID()
+  d.storageAccount = d.getStorageAccount()
+  d.clientID = d.getClientID()
+  d.clientSecret = d.getClientSecret()
+  d.certPath = d.getCertPath()
+
 	maxRetries := d.getMaxRetries()
 	d.maxRetries = &maxRetries
+	
 	log.Info("storage driver initialized")
 	return nil
 }
@@ -911,77 +913,68 @@ func (d *driver) getFullName(name string) string {
 }
 
 // Retrieve config arguments
-func (d *driver) getAccessKey() string {
-	if accessKey := os.Getenv("AZURE_CLIENT_SECRET"); accessKey != "" {
-		return accessKey
-	}
-	if accessKey := d.config.GetString(
-		azure.ConfigAzureAccessKey); accessKey != "" {
-		return accessKey
-	}
-	return d.config.GetString(ebs.ConfigEC2AccessKey)
+func (d *driver) getSubscriptionID() string {
+  if result := os.Getenv("AZURE_SUBSCRIPTION_ID"); result != "" {
+    return result
+  }
+  return d.config.GetString(azure.ConfigAZURESubscriptionIDKey)
 }
 
-func (d *driver) secretKey() string {
-	if secretKey := d.config.GetString(
-		ebs.ConfigEBSSecretKey); secretKey != "" {
-		return secretKey
-	}
-	if secretKey := d.config.GetString(
-		ebs.ConfigAWSSecretKey); secretKey != "" {
-		return secretKey
-	}
-	return d.config.GetString(ebs.ConfigEC2SecretKey)
+func (d *driver) getResourceGroup() string {
+  if result := os.Getenv("AZURE_RESOURCE_GROUP"); result != "" {
+    return result
+  }
+  return d.config.GetString(azure.ConfigAZUREResourceGroupKey)
 }
 
-func (d *driver) getRegion() string {
-	if region := d.config.GetString(ebs.ConfigEBSRegion); region != "" {
-		return region
-	}
-	if region := d.config.GetString(ebs.ConfigAWSRegion); region != "" {
-		return region
-	}
-	return d.config.GetString(ebs.ConfigEC2Region)
+func (d *driver) getTenantID() string {
+  if result := os.Getenv("AZURE_TENANT_ID"); result != "" {
+    return result
+  }
+  return d.config.GetString(azure.ConfigAZURETenantIDKey)
 }
 
-func (d *driver) getEndpoint() string {
-	if endpoint := d.config.GetString(ebs.ConfigEBSEndpoint); endpoint != "" {
-		return endpoint
+func (d *driver) getStorageAccount() string {
+  if result := os.Getenv("AZURE_STORAGE_ACCOUNT"); result != "" {
+    return result
+  }
+  return d.config.GetString(azure.ConfigAZUREStorageAccountKey)
+}
+
+func (d *driver) getContainer() string {
+  if result := os.Getenv("AZURE_CONTAINER"); result != "" {
+    return result
+  }
+  return d.config.GetString(azure.ConfigAZUREContainerKey)
+}
+
+func (d *driver) getClientID() string {
+  if result := os.Getenv("AZURE_CLIENT_ID"); result != "" {
+    return result
+  }
+  return d.config.GetString(azure.ConfigAZUREClientIDKey)
+}
+
+func (d *driver) getClientSecret() string {
+	if result := os.Getenv("AZURE_CLIENT_SECRET"); result != "" {
+		return result
 	}
-	if endpoint := d.config.GetString(ebs.ConfigAWSEndpoint); endpoint != "" {
-		return endpoint
-	}
-	return d.config.GetString(ebs.ConfigEC2Endpoint)
+	return d.config.GetString(azure.ConfigAZUREClientSecretKey)
+}
+
+func (d *driver) getCertPath() string {
+  if result := os.Getenv("AZURE_CERT_PATH"); result != "" {
+    return result
+  }
+  return d.config.GetString(azure.ConfigAZURECertPathKey)
 }
 
 func (d *driver) getMaxRetries() int {
-	if d.config.IsSet(ebs.ConfigEBSMaxRetries) {
-		return d.config.GetInt(ebs.ConfigEBSMaxRetries)
-	}
-	if d.config.IsSet(ebs.ConfigAWSMaxRetries) {
-		return d.config.GetInt(ebs.ConfigAWSMaxRetries)
-	}
-	return d.config.GetInt(ebs.ConfigEC2MaxRetries)
+	return d.config.GetInt(azure.ConfigAZUREMaxRetries)
 }
 
 func (d *driver) tag() string {
-	if tag := d.config.GetString(ebs.ConfigEBSTag); tag != "" {
-		return tag
-	}
-	if tag := d.config.GetString(ebs.ConfigAWSTag); tag != "" {
-		return tag
-	}
-	return d.config.GetString(ebs.ConfigEC2Tag)
-}
-
-func (d *driver) getKmsKeyID() string {
-	if v := d.config.GetString(ebs.ConfigEBSKmsKeyID); v != "" {
-		return v
-	}
-	if v := d.config.GetString(ebs.ConfigAWSKmsKeyID); v != "" {
-		return v
-	}
-	return d.config.GetString(ebs.ConfigEC2KmsKeyID)
+	return d.config.GetString(azure.ConfigAZURETag)
 }
 
 // TODO rexrayTag
