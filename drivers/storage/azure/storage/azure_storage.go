@@ -262,45 +262,52 @@ func (d *driver) getFullName(name string) string {
 
 // Retrieve config arguments
 func (d *driver) getSubscriptionID() string {
-  if result := os.Getenv("AZURE_SUBSCRIPTION_ID"); result != "" {
-    return result
-  }
-  return d.config.GetString(azure.ConfigAZURESubscriptionIDKey)
+	if result := os.Getenv("AZURE_SUBSCRIPTION_ID"); result != "" {
+	return result
+	}
+	return d.config.GetString(azure.ConfigAZURESubscriptionIDKey)
 }
 
 func (d *driver) getResourceGroup() string {
-  if result := os.Getenv("AZURE_RESOURCE_GROUP"); result != "" {
-    return result
-  }
-  return d.config.GetString(azure.ConfigAZUREResourceGroupKey)
+	if result := os.Getenv("AZURE_RESOURCE_GROUP"); result != "" {
+		return result
+	}
+	return d.config.GetString(azure.ConfigAZUREResourceGroupKey)
 }
 
 func (d *driver) getTenantID() string {
-  if result := os.Getenv("AZURE_TENANT_ID"); result != "" {
-    return result
-  }
-  return d.config.GetString(azure.ConfigAZURETenantIDKey)
+	if result := os.Getenv("AZURE_TENANT_ID"); result != "" {
+		return result
+	}
+	return d.config.GetString(azure.ConfigAZURETenantIDKey)
 }
 
 func (d *driver) getStorageAccount() string {
-  if result := os.Getenv("AZURE_STORAGE_ACCOUNT"); result != "" {
-    return result
-  }
-  return d.config.GetString(azure.ConfigAZUREStorageAccountKey)
+	if result := os.Getenv("AZURE_STORAGE_ACCOUNT"); result != "" {
+		return result
+	}
+	return d.config.GetString(azure.ConfigAZUREStorageAccountKey)
+}
+
+func (d *driver) getStorageAccessKey() string {
+	if result := os.Getenv("AZURE_STORAGE_ACCESS_KEY"); result != "" {
+		return result
+	}
+	return d.config.GetString(azure.ConfigAZUREStorageAccessKeyKey)
 }
 
 func (d *driver) getContainer() string {
-  if result := os.Getenv("AZURE_CONTAINER"); result != "" {
-    return result
-  }
-  return d.config.GetString(azure.ConfigAZUREContainerKey)
+	if result := os.Getenv("AZURE_CONTAINER"); result != "" {
+	return result
+	}
+	return d.config.GetString(azure.ConfigAZUREContainerKey)
 }
 
 func (d *driver) getClientID() string {
-  if result := os.Getenv("AZURE_CLIENT_ID"); result != "" {
-    return result
-  }
-  return d.config.GetString(azure.ConfigAZUREClientIDKey)
+	if result := os.Getenv("AZURE_CLIENT_ID"); result != "" {
+		return result
+	}
+	return d.config.GetString(azure.ConfigAZUREClientIDKey)
 }
 
 func (d *driver) getClientSecret() string {
