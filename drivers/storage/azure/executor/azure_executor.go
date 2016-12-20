@@ -10,8 +10,6 @@ import (
 	"regexp"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
-
 	gofig "github.com/akutz/gofig/types"
 	"github.com/akutz/goof"
 
@@ -23,7 +21,6 @@ import (
 
 // driver is the storage executor for the azure storage driver.
 type driver struct {
-	name   string
 	config gofig.Config
 }
 
@@ -32,7 +29,7 @@ func init() {
 }
 
 func newDriver() types.StorageExecutor {
-	return &driver{name: azure.Name}
+	return &driver{}
 }
 
 func (d *driver) Init(ctx types.Context, config gofig.Config) error {
@@ -41,7 +38,7 @@ func (d *driver) Init(ctx types.Context, config gofig.Config) error {
 }
 
 func (d *driver) Name() string {
-	return d.name
+	return azure.Name
 }
 
 // Supported returns a flag indicating whether or not the platform
@@ -50,7 +47,6 @@ func (d *driver) Name() string {
 func (d *driver) Supported(
 	ctx types.Context,
 	opts types.Store) (bool, error) {
-
 	return azureUtils.IsAzureInstance(ctx)
 }
 
@@ -137,8 +133,6 @@ func (d *driver) LocalDevices(
 	if len(devMap) > 0 {
 		ld.DeviceMap = devMap
 	}
-
-	log.WithField(ld.DeviceMap).Debug("local devices")
 
 	return ld, nil
 }

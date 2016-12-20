@@ -42,6 +42,7 @@ type driver struct {
 	resourceGroup    string
 	tenantID         string
 	storageAccount   string
+	storageAccessKey string
 	clientID         string
 	clientSecret     string
 	certPath         string
@@ -63,13 +64,16 @@ func (d *driver) Name() string {
 // Init initializes the driver.
 func (d *driver) Init(context types.Context, config gofig.Config) error {
 	d.config = config
-	d.subscriptionID = d.getSubscriptionID()
-	d.resourceGroup = d.getResourceGroup()
 	d.tenantID = d.getTenantID()
-	d.storageAccount = d.getStorageAccount()
 	d.clientID = d.getClientID()
 	d.clientSecret = d.getClientSecret()
 	d.certPath = d.getCertPath()
+
+	d.storageAccount = d.getStorageAccount()
+	d.storageAccessKey = d.getStorageAccessKey()
+
+	d.subscriptionID = d.getSubscriptionID()
+	d.resourceGroup = d.getResourceGroup()
 
 	//maxRetries := d.getMaxRetries()
 	//d.maxRetries = &maxRetries
