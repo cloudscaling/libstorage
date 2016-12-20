@@ -18,8 +18,8 @@ const (
 	DefaultMaxRetries = 10
 
 	// Config keys:
-  SubscriptionIDKey = "subscriptionID"
-  ResourceGroupKey  = "resourceGroup"
+	SubscriptionIDKey = "subscriptionID"
+	ResourceGroupKey  = "resourceGroup"
 	TenantIDKey       = "tenantID"
 	StorageAccountKey = "storageAccount"
 	ContainerKey      = "container"
@@ -30,11 +30,25 @@ const (
 	TagKey            = "tag"
 )
 
+const (
+	ConfigAZURE                  = Name
+	ConfigAZURESubscriptionIDKey = ConfigAZURE + "." + SubscriptionIDKey
+	ConfigAZUREResourceGroupKey  = ConfigAZURE + "." + ResourceGroupKey
+	ConfigAZURETenantIDKey       = ConfigAZURE + "." + TenantIDKey
+	ConfigAZUREStorageAccountKey = ConfigAZURE + "." + StorageAccountKey
+	ConfigAZUREContainerKey      = ConfigAZURE + "." + ContainerKey
+	ConfigAZUREClientIDKey       = ConfigAZURE + "." + ClientIDKey
+	ConfigAZUREClientSecretKey   = ConfigAZURE + "." + ClientSecretKey
+	ConfigAZURECertPathKey       = ConfigAZURE + "." + CertPathKey
+	ConfigAZUREMaxRetriesKey     = ConfigAZURE + "." + MaxRetriesKey
+	ConfigAZURETagKey            = ConfigAZURE + "." + TagKey
+)
+
 func init() {
 	r := gofigCore.NewRegistration("AZURE")
 	r.Key(gofig.String, "", "", "", Name+"."+SubscriptionIDKey)
 	r.Key(gofig.String, "", "", "", Name+"."+ResourceGroupKey)
-  r.Key(gofig.String, "", "", "", Name+"."+TenantIDKey)
+	r.Key(gofig.String, "", "", "", Name+"."+TenantIDKey)
 	r.Key(gofig.String, "", "", "", Name+"."+StorageAccountKey)
 	r.Key(gofig.String, "", "", "", Name+"."+ContainerKey)
 	r.Key(gofig.String, "", "", "", Name+"."+ClientIDKey)

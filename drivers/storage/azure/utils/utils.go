@@ -16,5 +16,5 @@ func IsAzureInstance(ctx types.Context) (bool, error) {
 func InstanceID(ctx types.Context) (*types.InstanceID, error) {
 	// TODO: read from bios as described in
 	// https://azure.microsoft.com/en-us/blog/accessing-and-using-azure-vm-unique-id/
-	return nil, err
+	return nil, nil
 }

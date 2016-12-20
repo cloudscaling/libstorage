@@ -3,13 +3,13 @@
 package storage
 
 import (
-	"crypto/md5"
-	"fmt"
+	//"crypto/md5"
+	//"fmt"
 	"hash"
 	"os"
 	"strings"
 	"sync"
-	"time"
+	//"time"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -17,13 +17,13 @@ import (
 	"github.com/akutz/goof"
 
 	"github.com/Azure/azure-sdk-for-go/arm/storage"
-	"github.com/Azure/go-autorest/autorest/azure"
+	//azureRest "github.com/Azure/go-autorest/autorest/azure"
 
 	"github.com/codedellemc/libstorage/api/context"
 	"github.com/codedellemc/libstorage/api/registry"
 	"github.com/codedellemc/libstorage/api/types"
 	"github.com/codedellemc/libstorage/drivers/storage/azure"
-	"github.com/codedellemc/libstorage/drivers/storage/ebs"
+	azureUtils "github.com/codedellemc/libstorage/drivers/storage/azure/utils"
 )
 
 const (
@@ -44,7 +44,7 @@ type driver struct {
 	storageAccount   string
 	clientID         string
 	clientSecret     string
-  certPath         string
+	certPath         string
 	maxRetries       int
 }
 
@@ -63,17 +63,17 @@ func (d *driver) Name() string {
 // Init initializes the driver.
 func (d *driver) Init(context types.Context, config gofig.Config) error {
 	d.config = config
-  d.subscriptionID = d.getSubscriptionID()
-  d.resourceGroup = d.getResourceGroup()
-  d.tenantID = d.getTenantID()
-  d.storageAccount = d.getStorageAccount()
-  d.clientID = d.getClientID()
-  d.clientSecret = d.getClientSecret()
-  d.certPath = d.getCertPath()
+	d.subscriptionID = d.getSubscriptionID()
+	d.resourceGroup = d.getResourceGroup()
+	d.tenantID = d.getTenantID()
+	d.storageAccount = d.getStorageAccount()
+	d.clientID = d.getClientID()
+	d.clientSecret = d.getClientSecret()
+	d.certPath = d.getCertPath()
 
-	maxRetries := d.getMaxRetries()
-	d.maxRetries = &maxRetries
-	
+	//maxRetries := d.getMaxRetries()
+	//d.maxRetries = &maxRetries
+
 	log.Info("storage driver initialized")
 	return nil
 }
@@ -96,11 +96,9 @@ func (d *driver) Login(ctx types.Context) (interface{}, error) {
 	sessionsL.Lock()
 	defer sessionsL.Unlock()
 
-  // TODO: impl
+	// TODO: impl
 	return nil, types.ErrNotImplemented
 }
-
-
 
 // NextDeviceInfo returns the information about the driver's next available
 // device workflow.
@@ -123,7 +121,7 @@ func (d *driver) InstanceInspect(
 	iid := context.MustInstanceID(ctx)
 	return &types.Instance{
 		Name:         iid.ID,
-		Region:       iid.Fields[ebs.InstanceIDFieldRegion],
+		//Region:       iid.Fields[azure.InstanceIDFieldRegion],
 		InstanceID:   iid,
 		ProviderName: iid.Driver,
 	}, nil
@@ -134,7 +132,7 @@ func (d *driver) Volumes(
 	ctx types.Context,
 	opts *types.VolumesOpts) ([]*types.Volume, error) {
 	// TODO: impl
-  return nil, types.ErrNotImplemented
+	return nil, types.ErrNotImplemented
 }
 
 // VolumeInspect inspects a single volume.
@@ -142,7 +140,7 @@ func (d *driver) VolumeInspect(
 	ctx types.Context,
 	volumeID string,
 	opts *types.VolumeInspectOpts) (*types.Volume, error) {
-  // TODO: impl
+	// TODO: impl
 	return nil, types.ErrNotImplemented
 }
 
@@ -150,13 +148,8 @@ func (d *driver) VolumeInspect(
 func (d *driver) VolumeCreate(ctx types.Context, volumeName string,
 	opts *types.VolumeCreateOpts) (*types.Volume, error) {
 	// Initialize for logging
-	fields := map[string]interface{}{
-		"driverName": d.Name(),
-		"volumeName": volumeName,
-		"opts":       opts,
-	}
-  // TODO: impl
-  return nil, types.ErrNotImplemented
+	// TODO: impl
+	return nil, types.ErrNotImplemented
 }
 
 // VolumeCreateFromSnapshot creates a new volume from an existing snapshot.
@@ -166,7 +159,6 @@ func (d *driver) VolumeCreateFromSnapshot(
 	opts *types.VolumeCreateOpts) (*types.Volume, error) {
 	// TODO Snapshots are not implemented yet
 	return nil, types.ErrNotImplemented
-
 }
 
 // VolumeCopy copies an existing volume.
@@ -193,15 +185,9 @@ func (d *driver) VolumeRemove(
 	volumeID string,
 	opts types.Store) error {
 
-	// Initialize for logging
-	fields := map[string]interface{}{
-		"provider": d.Name(),
-		"volumeID": volumeID,
-	}
-
 	//TODO check if volume is attached? if so fail
-  // TODO: impl
-  return nil, types.ErrNotImplemented
+	// TODO: impl
+	return types.ErrNotImplemented
 }
 
 // VolumeAttach attaches a volume and provides a token clients can use
@@ -210,8 +196,8 @@ func (d *driver) VolumeAttach(
 	ctx types.Context,
 	volumeID string,
 	opts *types.VolumeAttachOpts) (*types.Volume, string, error) {
-  // TODO: impl
-  return nil, types.ErrNotImplemented
+	// TODO: impl
+	return nil, "", types.ErrNotImplemented
 }
 
 var errVolAlreadyDetached = goof.New("volume already detached")
@@ -221,8 +207,8 @@ func (d *driver) VolumeDetach(
 	ctx types.Context,
 	volumeID string,
 	opts *types.VolumeDetachOpts) (*types.Volume, error) {
-  // TODO: impl
-  return nil, types.ErrNotImplemented
+	// TODO: impl
+	return nil, types.ErrNotImplemented
 }
 
 // Snapshots returns all volumes or a filtered list of snapshots.
@@ -325,18 +311,18 @@ func (d *driver) getClientSecret() string {
 }
 
 func (d *driver) getCertPath() string {
-  if result := os.Getenv("AZURE_CERT_PATH"); result != "" {
-    return result
-  }
-  return d.config.GetString(azure.ConfigAZURECertPathKey)
+	if result := os.Getenv("AZURE_CERT_PATH"); result != "" {
+		return result
+	}
+	return d.config.GetString(azure.ConfigAZURECertPathKey)
 }
 
 func (d *driver) getMaxRetries() int {
-	return d.config.GetInt(azure.ConfigAZUREMaxRetries)
+	return d.config.GetInt(azure.ConfigAZUREMaxRetriesKey)
 }
 
 func (d *driver) tag() string {
-	return d.config.GetString(azure.ConfigAZURETag)
+	return d.config.GetString(azure.ConfigAZURETagKey)
 }
 
 // TODO rexrayTag
