@@ -4,7 +4,7 @@
 package utils
 
 import (
-  "github.com/codedellemc/libstorage/api/types"
+	"github.com/codedellemc/libstorage/api/types"
 )
 
 // NextDeviceInfo is the NextDeviceInfo object for Azure.
@@ -13,7 +13,7 @@ import (
 // /dev/sdb is a temporary disk.
 // Other letters can be used for data volumes.
 var NextDeviceInfo = &types.NextDeviceInfo{
-  Prefix:  "sd",
-  Pattern: "[c-p]",
-  Ignore:  false,
+	Prefix:  "sd",
+	Pattern: "[c-p]",
+	Ignore:  false,
 }
