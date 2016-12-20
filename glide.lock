@@ -52,6 +52,8 @@ imports:
   - service/ec2
   - service/efs
   - service/sts
+- name: github.com/Azure/azure-sdk-for-go
+  version: 0984e0641ae43b89283223034574d6465be93bf4
 - name: github.com/cesanta/ucl
   version: 97c016fce90e6af1b14558563ac46852167e6a76
 - name: github.com/cesanta/validate-json
