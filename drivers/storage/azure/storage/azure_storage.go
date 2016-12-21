@@ -10,6 +10,7 @@ import (
 	"hash"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	//"time"
@@ -474,6 +475,8 @@ func (d *driver) tag() string {
 
 var errGetLocDevs = goof.New("error getting local devices from context")
 
+var extRX = regexp.MustCompile(".*\\.vhd$")
+
 func (d *driver) toTypesVolume(
         ctx types.Context,
         blobs *[]blobStorage.Blob,
@@ -494,7 +497,8 @@ func (d *driver) toTypesVolume(
 
 	var volumesSD []*types.Volume
 	for _, blob := range *blobs {
-		if blob.Properties.BlobType == blobStorage.BlobTypePage || blob.Properties.BlobType == "" {
+//		if blob.Properties.BlobType == blobStorage.BlobTypePage || blob.Properties.BlobType == "" {
+		if extRX.MatchString(blob.Name) {
 			var attachmentsSD []*types.VolumeAttachment
 			if attachments.Requested() {
 // TODO:
