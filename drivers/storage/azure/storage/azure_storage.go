@@ -19,6 +19,7 @@ import (
 
 	autorestAzure "github.com/Azure/go-autorest/autorest/azure"
 	armStorage "github.com/Azure/azure-sdk-for-go/arm/storage"
+	blobStorage "github.com/Azure/azure-sdk-for-go/storage"
 	//azureRest "github.com/Azure/go-autorest/autorest/azure"
 	"golang.org/x/crypto/pkcs12"
 
@@ -46,6 +47,7 @@ type driver struct {
 	tenantID         string
 	storageAccount   string
 	storageAccessKey string
+	container        string
 	clientID         string
 	clientSecret     string
 	certPath         string
@@ -75,6 +77,7 @@ func (d *driver) Init(context types.Context, config gofig.Config) error {
 
 	d.storageAccount = d.getStorageAccount()
 	d.storageAccessKey = d.getStorageAccessKey()
+	d.container = d.getContainer()
 
 	d.subscriptionID = d.getSubscriptionID()
 	d.resourceGroup = d.getResourceGroup()
@@ -88,8 +91,13 @@ func (d *driver) Init(context types.Context, config gofig.Config) error {
 
 const cacheKeyC = "cacheKey"
 
+type azureSession struct {
+	accountClient		*armStorage.AccountsClient
+	blobClient		*blobStorage.BlobStorageClient
+}
+
 var (
-	sessions  = map[string]*armStorage.AccountsClient{}
+	sessions  = map[string]*azureSession{}
 	sessionsL = &sync.Mutex{}
 )
 
@@ -124,6 +132,10 @@ func decodePkcs12(pkcs []byte, password string) (*x509.Certificate, *rsa.Private
     return certificate, rsaPrivateKey, nil
 }
 
+func mustSession(ctx types.Context) *azureSession {
+	return context.MustSession(ctx).(*azureSession)
+}
+
 func (d *driver) Login(ctx types.Context) (interface{}, error) {
 	sessionsL.Lock()
 	defer sessionsL.Unlock()
@@ -145,6 +157,7 @@ func (d *driver) Login(ctx types.Context) (interface{}, error) {
         writeHkey(hkey, &d.resourceGroup)
         writeHkey(hkey, &d.tenantID)
         writeHkey(hkey, &d.storageAccount)
+	writeHkey(hkey, &d.storageAccessKey)
 	if d.clientID != "" && d.clientSecret != "" {
 		ctx.Debug("login to azure storage driver using clientID and clientSecret")
 	        writeHkey(hkey, &d.clientID)
@@ -164,9 +177,9 @@ func (d *driver) Login(ctx types.Context) (interface{}, error) {
 	}
 	ckey = fmt.Sprintf("%x", hkey.Sum(nil))
 
-	if ac, ok := sessions[ckey]; ok {
+	if session, ok := sessions[ckey]; ok {
 		ctx.WithField(cacheKeyC, ckey).Debug("using cached azure client")
-		return ac, nil
+		return session, nil
 	}
 
 	oauthConfig, err := autorestAzure.PublicCloud.OAuthConfigForTenant(d.tenantID)
@@ -196,11 +209,20 @@ func (d *driver) Login(ctx types.Context) (interface{}, error) {
 
 	newAC := armStorage.NewAccountsClient(d.subscriptionID)
 	newAC.Authorizer = spt
-	sessions[ckey] = &newAC
+	bc, err := blobStorage.NewBasicClient(d.storageAccount, d.storageAccessKey)
+	 if err != nil {
+		return nil, goof.WithError("Failed to create BlobStorage client", err)
+	}
+	newBC := bc.GetBlobService()
+	session := azureSession{
+		accountClient: &newAC,
+		blobClient: &newBC,
+	}
+	sessions[ckey] = &session
 
 	ctx.WithField(cacheKeyC, ckey).Info("login to azure storage driver created and cached")
 
-	return &newAC, nil
+	return &session, nil
 }
 
 // NextDeviceInfo returns the information about the driver's next available
@@ -234,8 +256,18 @@ func (d *driver) InstanceInspect(
 func (d *driver) Volumes(
 	ctx types.Context,
 	opts *types.VolumesOpts) ([]*types.Volume, error) {
-	// TODO: impl
-	return nil, types.ErrNotImplemented
+
+	list, err := mustSession(ctx).blobClient.ListBlobs(d.container, blobStorage.ListBlobsParameters{})
+
+        if err != nil {
+                return nil, goof.WithError("error listing blobs", err)
+        }
+	// Convert retrieved volumes to libStorage types.Volume
+	vols, convErr := d.toTypesVolume(ctx, &list.Blobs, opts.Attachments)
+	if convErr != nil {
+		return nil, goof.WithError("error converting to types.Volume", convErr)
+        }
+        return vols, nil
 }
 
 // VolumeInspect inspects a single volume.
@@ -439,3 +471,53 @@ func (d *driver) tag() string {
 /*func (d *driver) rexrayTag() string {
   return d.config.GetString("azure.rexrayTag")
 }*/
+
+var errGetLocDevs = goof.New("error getting local devices from context")
+
+func (d *driver) toTypesVolume(
+        ctx types.Context,
+        blobs *[]blobStorage.Blob,
+        attachments types.VolumeAttachmentsTypes) ([]*types.Volume, error) {
+
+/*        var (
+                ld *types.LocalDevices
+                ldOK bool
+        )
+
+        if attachments.Devices() {
+                // Get local devices map from context
+                if ld, ldOK = context.LocalDevices(ctx); !ldOK {
+                        return nil, errGetLocDevs
+                }
+        }
+*/
+
+	var volumesSD []*types.Volume
+	for _, blob := range *blobs {
+		if blob.Properties.BlobType == blobStorage.BlobTypePage || blob.Properties.BlobType == "" {
+			var attachmentsSD []*types.VolumeAttachment
+			if attachments.Requested() {
+// TODO:
+//				return nil, types.ErrNotImplemented 
+			}
+			volumeSD := &types.Volume{
+				Name:             blob.Name,
+				ID:               blob.Name,
+// TODO:
+//                        	AvailabilityZone: *volume.AvailabilityZone,
+//	                        Encrypted:        *volume.Encrypted,
+//      	                  Status:           *volume.State,
+//              	          Type:             *volume.VolumeType,
+				Size:             blob.Properties.ContentLength,
+				Attachments:      attachmentsSD,
+			}
+
+                	// Some volume types have no IOPS, so we get nil in volume.Iops
+//                	if volume.Iops != nil {
+//                        	volumeSD.IOPS = *volume.Iops
+//                	}
+			volumesSD = append(volumesSD, volumeSD)
+		}
+	}
+	return volumesSD, nil
+}
