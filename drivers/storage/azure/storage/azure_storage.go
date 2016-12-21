@@ -102,10 +102,10 @@ var (
 )
 
 func writeHkeyB(h hash.Hash, ps []byte) {
-        if ps == nil {
-                return
-        }
-        h.Write(ps)
+	if ps == nil {
+		return
+	}
+	h.Write(ps)
 }
 
 func writeHkey(h hash.Hash, ps *string) {
@@ -119,17 +119,17 @@ var (
 )
 
 func decodePkcs12(pkcs []byte, password string) (*x509.Certificate, *rsa.PrivateKey, error) {
-    privateKey, certificate, err := pkcs12.Decode(pkcs, password)
-    if err != nil {
-        return nil, nil, err
-    }
+	privateKey, certificate, err := pkcs12.Decode(pkcs, password)
+	if err != nil {
+	return nil, nil, err
+	}
 
-    rsaPrivateKey, isRsaKey := privateKey.(*rsa.PrivateKey)
-    if !isRsaKey {
-        return nil, nil, invalideRsaPrivateKey
-    }
+	rsaPrivateKey, isRsaKey := privateKey.(*rsa.PrivateKey)
+	if !isRsaKey {
+	return nil, nil, invalideRsaPrivateKey
+	}
 
-    return certificate, rsaPrivateKey, nil
+	return certificate, rsaPrivateKey, nil
 }
 
 func mustSession(ctx types.Context) *azureSession {
@@ -141,35 +141,35 @@ func (d *driver) Login(ctx types.Context) (interface{}, error) {
 	defer sessionsL.Unlock()
 
 	ctx.Debug("login to azure storage driver")
-        var (
+	var (
 		hkey = md5.New()
 		ckey string
 		certData []byte
 		spt *autorestAzure.ServicePrincipalToken
 		err error
-        )
+	)
 
 	if d.tenantID == "" {
-                return nil, goof.New("Empty tenantID") 
+		return nil, goof.New("Empty tenantID") 
 	}
 
-        writeHkey(hkey, &d.subscriptionID)
-        writeHkey(hkey, &d.resourceGroup)
-        writeHkey(hkey, &d.tenantID)
-        writeHkey(hkey, &d.storageAccount)
+	writeHkey(hkey, &d.subscriptionID)
+	writeHkey(hkey, &d.resourceGroup)
+	writeHkey(hkey, &d.tenantID)
+	writeHkey(hkey, &d.storageAccount)
 	writeHkey(hkey, &d.storageAccessKey)
 	if d.clientID != "" && d.clientSecret != "" {
 		ctx.Debug("login to azure storage driver using clientID and clientSecret")
-	        writeHkey(hkey, &d.clientID)
+		writeHkey(hkey, &d.clientID)
 		writeHkey(hkey, &d.clientSecret)
 	} else if d.certPath != "" {
 		ctx.Debug("login to azure storage driver using clientCert")
 		// TODO: impl reading of cert
-                // TODO: impl for cert
-                certData, err = ioutil.ReadFile(d.certPath)
-                if err != nil {
-                        return nil, goof.WithError("Failed to read provided certificate file", err)
-                }
+		// TODO: impl for cert
+		certData, err = ioutil.ReadFile(d.certPath)
+		if err != nil {
+			return nil, goof.WithError("Failed to read provided certificate file", err)
+		}
 		writeHkeyB(hkey, certData)
 	} else {
 		ctx.Error("No login information provided")
@@ -190,9 +190,9 @@ func (d *driver) Login(ctx types.Context) (interface{}, error) {
 	if d.clientID != "" && d.clientSecret != "" {
 		spt, err = autorestAzure.NewServicePrincipalToken(*oauthConfig, d.clientID,
 			d.clientSecret, autorestAzure.PublicCloud.ResourceManagerEndpoint)
-                if err != nil {
-                        return nil, goof.WithError("Failed to create Service Principal Token with client ID and secret", err)
-                }
+		if err != nil {
+			return nil, goof.WithError("Failed to create Service Principal Token with client ID and secret", err)
+		}
 	} else {
 		certificate, rsaPrivateKey, err := decodePkcs12(certData, "")
 		if err != nil {
@@ -204,7 +204,7 @@ func (d *driver) Login(ctx types.Context) (interface{}, error) {
 			autorestAzure.PublicCloud.ResourceManagerEndpoint)
 		if err != nil {
 			return nil, goof.WithError("Failed to create Service Principal Token with certificate ", err)
-                }
+		}
 	}
 
 	newAC := armStorage.NewAccountsClient(d.subscriptionID)
@@ -245,7 +245,7 @@ func (d *driver) InstanceInspect(
 
 	iid := context.MustInstanceID(ctx)
 	return &types.Instance{
-		Name:         iid.ID,
+		Name:	 iid.ID,
 		//Region:       iid.Fields[azure.InstanceIDFieldRegion],
 		InstanceID:   iid,
 		ProviderName: iid.Driver,
@@ -259,15 +259,15 @@ func (d *driver) Volumes(
 
 	list, err := mustSession(ctx).blobClient.ListBlobs(d.container, blobStorage.ListBlobsParameters{})
 
-        if err != nil {
-                return nil, goof.WithError("error listing blobs", err)
-        }
+	if err != nil {
+		return nil, goof.WithError("error listing blobs", err)
+	}
 	// Convert retrieved volumes to libStorage types.Volume
 	vols, convErr := d.toTypesVolume(ctx, &list.Blobs, opts.Attachments)
 	if convErr != nil {
 		return nil, goof.WithError("error converting to types.Volume", convErr)
-        }
-        return vols, nil
+	}
+	return vols, nil
 }
 
 // VolumeInspect inspects a single volume.
@@ -398,7 +398,7 @@ func (d *driver) getFullName(name string) string {
 // Retrieve config arguments
 func (d *driver) getSubscriptionID() string {
 	if result := os.Getenv("AZURE_SUBSCRIPTION_ID"); result != "" {
-	return result
+		return result
 	}
 	return d.config.GetString(azure.ConfigAZURESubscriptionIDKey)
 }
@@ -475,21 +475,21 @@ func (d *driver) tag() string {
 var errGetLocDevs = goof.New("error getting local devices from context")
 
 func (d *driver) toTypesVolume(
-        ctx types.Context,
-        blobs *[]blobStorage.Blob,
-        attachments types.VolumeAttachmentsTypes) ([]*types.Volume, error) {
+	ctx types.Context,
+	blobs *[]blobStorage.Blob,
+	attachments types.VolumeAttachmentsTypes) ([]*types.Volume, error) {
 
 /*        var (
-                ld *types.LocalDevices
-                ldOK bool
-        )
+		ld *types.LocalDevices
+		ldOK bool
+	)
 
-        if attachments.Devices() {
-                // Get local devices map from context
-                if ld, ldOK = context.LocalDevices(ctx); !ldOK {
-                        return nil, errGetLocDevs
-                }
-        }
+	if attachments.Devices() {
+		// Get local devices map from context
+		if ld, ldOK = context.LocalDevices(ctx); !ldOK {
+			return nil, errGetLocDevs
+		}
+	}
 */
 
 	var volumesSD []*types.Volume
@@ -504,18 +504,18 @@ func (d *driver) toTypesVolume(
 				Name:             blob.Name,
 				ID:               blob.Name,
 // TODO:
-//                        	AvailabilityZone: *volume.AvailabilityZone,
-//	                        Encrypted:        *volume.Encrypted,
-//      	                  Status:           *volume.State,
-//              	          Type:             *volume.VolumeType,
+//				AvailabilityZone: *volume.AvailabilityZone,
+//				Encrypted:        *volume.Encrypted,
+//				Status:           *volume.State,
+//				Type:             *volume.VolumeType,
 				Size:             blob.Properties.ContentLength,
 				Attachments:      attachmentsSD,
 			}
 
-                	// Some volume types have no IOPS, so we get nil in volume.Iops
-//                	if volume.Iops != nil {
-//                        	volumeSD.IOPS = *volume.Iops
-//                	}
+			// Some volume types have no IOPS, so we get nil in volume.Iops
+//			if volume.Iops != nil {
+//				volumeSD.IOPS = *volume.Iops
+//			}
 			volumesSD = append(volumesSD, volumeSD)
 		}
 	}
