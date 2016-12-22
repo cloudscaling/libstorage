@@ -251,7 +251,7 @@ func (d *driver) InstanceInspect(
 
 	iid := context.MustInstanceID(ctx)
 	return &types.Instance{
-		Name:	 iid.ID,
+		Name:         iid.ID,
 		//Region:       iid.Fields[azure.InstanceIDFieldRegion],
 		InstanceID:   iid,
 		ProviderName: iid.Driver,
@@ -290,10 +290,12 @@ func (d *driver) VolumeCreate(ctx types.Context, volumeName string,
 	opts *types.VolumeCreateOpts) (*types.Volume, error) {
 	// Initialize for logging
 
-	if iid, err := azureUtils.InstanceID(ctx); err != nil || iid == nil {
-		return &types.Volume{}, goof.WithError(
-			"Can't create volume outside of Azure instance", err)
+	id, ok := context.InstanceID(ctx)
+	if !ok || id == nil {
+		return nil, goof.New(
+			"Can't create volume outside of Azure instance")
 	}
+	// real ID is there - "id.ID"
 
 	// TODO: impl
 	return nil, types.ErrNotImplemented
