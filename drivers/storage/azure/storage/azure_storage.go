@@ -18,6 +18,7 @@ import (
 	"github.com/akutz/goof"
 
 	autorestAzure "github.com/Azure/go-autorest/autorest/azure"
+	armCompute "github.com/Azure/azure-sdk-for-go/arm/compute"
 	armStorage "github.com/Azure/azure-sdk-for-go/arm/storage"
 	blobStorage "github.com/Azure/azure-sdk-for-go/storage"
 	//azureRest "github.com/Azure/go-autorest/autorest/azure"
@@ -92,8 +93,9 @@ func (d *driver) Init(context types.Context, config gofig.Config) error {
 const cacheKeyC = "cacheKey"
 
 type azureSession struct {
-	accountClient		*armStorage.AccountsClient
-	blobClient		*blobStorage.BlobStorageClient
+	accountClient   *armStorage.AccountsClient
+	vmClient        *armCompute.VirtualMachinesClient
+	blobClient      *blobStorage.BlobStorageClient
 }
 
 var (
@@ -209,14 +211,18 @@ func (d *driver) Login(ctx types.Context) (interface{}, error) {
 
 	newAC := armStorage.NewAccountsClient(d.subscriptionID)
 	newAC.Authorizer = spt
+	newVMC := armCompute.NewVirtualMachinesClient(d.subscriptionID)
+	newVMC.Authorizer = spt
 	bc, err := blobStorage.NewBasicClient(d.storageAccount, d.storageAccessKey)
-	 if err != nil {
+	if err != nil {
 		return nil, goof.WithError("Failed to create BlobStorage client", err)
 	}
 	newBC := bc.GetBlobService()
+
 	session := azureSession{
 		accountClient: &newAC,
 		blobClient: &newBC,
+		vmClient: &newVMC,
 	}
 	sessions[ckey] = &session
 
@@ -283,6 +289,12 @@ func (d *driver) VolumeInspect(
 func (d *driver) VolumeCreate(ctx types.Context, volumeName string,
 	opts *types.VolumeCreateOpts) (*types.Volume, error) {
 	// Initialize for logging
+
+	if iid, err := azureUtils.InstanceID(ctx); err != nil || iid == nil {
+		return &types.Volume{}, goof.WithError(
+			"Can't create volume outside of Azure instance", err)
+	}
+
 	// TODO: impl
 	return nil, types.ErrNotImplemented
 }
@@ -482,7 +494,8 @@ func (d *driver) toTypesVolume(
 	blobs *[]blobStorage.Blob,
 	attachments types.VolumeAttachmentsTypes) ([]*types.Volume, error) {
 
-/*        var (
+/*
+	var (
 		ld *types.LocalDevices
 		ldOK bool
 	)
