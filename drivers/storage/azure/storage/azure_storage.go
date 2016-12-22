@@ -17,10 +17,11 @@ import (
 	gofig "github.com/akutz/gofig/types"
 	"github.com/akutz/goof"
 
-	compute "github.com/Azure/azure-sdk-for-go/arm/compute"
+	armCompute "github.com/Azure/azure-sdk-for-go/arm/compute"
 	armStorage "github.com/Azure/azure-sdk-for-go/arm/storage"
 	blobStorage "github.com/Azure/azure-sdk-for-go/storage"
 	autorestAzure "github.com/Azure/go-autorest/autorest/azure"
+
 	//azureRest "github.com/Azure/go-autorest/autorest/azure"
 	"golang.org/x/crypto/pkcs12"
 
@@ -94,7 +95,7 @@ const cacheKeyC = "cacheKey"
 
 type azureSession struct {
 	accountClient *armStorage.AccountsClient
-	vmClient      *compute.VirtualMachinesClient
+	vmClient      *armCompute.VirtualMachinesClient
 	blobClient    *blobStorage.BlobStorageClient
 }
 
@@ -211,13 +212,13 @@ func (d *driver) Login(ctx types.Context) (interface{}, error) {
 
 	newAC := armStorage.NewAccountsClient(d.subscriptionID)
 	newAC.Authorizer = spt
+	newVMC := armCompute.NewVirtualMachinesClient(d.subscriptionID)
+	newVMC.Authorizer = spt
 	bc, err := blobStorage.NewBasicClient(d.storageAccount, d.storageAccessKey)
 	if err != nil {
 		return nil, goof.WithError("Failed to create BlobStorage client", err)
 	}
 	newBC := bc.GetBlobService()
-	newVMC := compute.NewVirtualMachinesClient(d.subscriptionID)
-	newVMC.Authorizer = spt
 	session := azureSession{
 		accountClient: &newAC,
 		blobClient:    &newBC,
@@ -287,6 +288,14 @@ func (d *driver) VolumeInspect(
 func (d *driver) VolumeCreate(ctx types.Context, volumeName string,
 	opts *types.VolumeCreateOpts) (*types.Volume, error) {
 	// Initialize for logging
+
+	id, ok := context.InstanceID(ctx)
+	if !ok || id == nil {
+		return nil, goof.New(
+			"Can't create volume outside of Azure instance")
+	}
+	// real ID is there - "id.ID"
+
 	// TODO: impl
 	//vmName := nil
 	//_, err := mustSession(ctx).vmClient.CreateOrUpdate(d.resourceGroup, vmName, newVM, nil)
@@ -357,11 +366,14 @@ func (d *driver) VolumeAttach(
 		return nil, "", goof.WithFieldsE(fields, "failed to attach volume to VM", err)
 	}
 
+	//TODO:
+	diskName := ""
+	diskURI := ""
 	disks := *vm.StorageProfile.DataDisks
 	disks = append(disks,
-		compute.DataDisk{
+		armCompute.DataDisk{
 			Name: &diskName,
-			Vhd: &compute.VirtualHardDisk{
+			Vhd: &armCompute.VirtualHardDisk{
 				URI: &diskURI,
 			},
 			//#TODO:
@@ -369,10 +381,10 @@ func (d *driver) VolumeAttach(
 			//			Caching:      cachingMode,
 			CreateOption: "attach",
 		})
-	newVM := compute.VirtualMachine{
+	newVM := armCompute.VirtualMachine{
 		Location: vm.Location,
-		VirtualMachineProperties: &compute.VirtualMachineProperties{
-			StorageProfile: &compute.StorageProfile{
+		VirtualMachineProperties: &armCompute.VirtualMachineProperties{
+			StorageProfile: &armCompute.StorageProfile{
 				DataDisks: &disks,
 			},
 		},
@@ -532,17 +544,18 @@ func (d *driver) toTypesVolume(
 	blobs *[]blobStorage.Blob,
 	attachments types.VolumeAttachmentsTypes) ([]*types.Volume, error) {
 
-	/*        var (
-		ld *types.LocalDevices
-		ldOK bool
-	)
+	/*
+		var (
+			ld *types.LocalDevices
+			ldOK bool
+		)
 
-	if attachments.Devices() {
-		// Get local devices map from context
-		if ld, ldOK = context.LocalDevices(ctx); !ldOK {
-			return nil, errGetLocDevs
+		if attachments.Devices() {
+			// Get local devices map from context
+			if ld, ldOK = context.LocalDevices(ctx); !ldOK {
+				return nil, errGetLocDevs
+			}
 		}
-	}
 	*/
 
 	var volumesSD []*types.Volume
@@ -596,9 +609,9 @@ func (d *driver) toTypesVolume(
 }
 
 func (d *driver) getVM(ctx types.Context, name string) (
-	*compute.VirtualMachine, error) {
+	*armCompute.VirtualMachine, error) {
 
-	vm, err := mustSession(ctx).vmClient.Get(az.ResourceGroup, name, "")
+	vm, err := mustSession(ctx).vmClient.Get(d.resourceGroup, name, "")
 	if err != nil {
 		fields := map[string]interface{}{
 			"provider": d.Name(),
