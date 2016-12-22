@@ -555,68 +555,81 @@ func (d *driver) toTypesVolume(
 	blobs *[]blobStorage.Blob,
 	attachments types.VolumeAttachmentsTypes) ([]*types.Volume, error) {
 
-	/*
-		var (
-			ld *types.LocalDevices
-			ldOK bool
-		)
+/* TODO:
+	var (
+		ld *types.LocalDevices
+		ldOK bool
+	)
 
-		if attachments.Devices() {
-			// Get local devices map from context
-			if ld, ldOK = context.LocalDevices(ctx); !ldOK {
-				return nil, errGetLocDevs
-			}
+	if attachments.Devices() {
+		// Get local devices map from context
+		if ld, ldOK = context.LocalDevices(ctx); !ldOK {
+			return nil, errGetLocDevs
 		}
-	*/
+	}
+*/
 
 	var volumesSD []*types.Volume
 	for _, blob := range *blobs {
-
-		// Metadata can have these fileds:
-		// microsoftazurecompute_resourcegroupname:trex
-		// microsoftazurecompute_vmname:ttt
-		// microsoftazurecompute_disktype:DataDisk (or OSDisk)
-		// microsoftazurecompute_diskid:7d9df1c9-7b4f-41d4-a2e3-6870dfa573ba
-		// microsoftazurecompute_diskname:ttt-20161221-130722
-		// microsoftazurecompute_disksizeingb:50
-
-		btype := blob.Metadata["microsoftazurecompute_disktype"]
-		if btype == "" {
-			continue
+		volumeSD, error := d.toTypeVolume(ctx, &blob, attachments)
+		if error != nil {
+			ctx.WithError(error).Error("Failed to convert volume")
+		} else if volumeSD != nil {
+			volumesSD = append(volumesSD, volumeSD)
 		}
-		bstate := "detached"
-		if blob.Metadata["microsoftazurecompute_vmname"] != "" {
-			bstate = "attached"
-		}
-		bID := blob.Name
-		if idMeta := blob.Metadata["microsoftazurecompute_diskid"]; idMeta != "" {
-			bID = idMeta
-		}
-		var attachmentsSD []*types.VolumeAttachment
-		if attachments.Requested() {
-			// TODO:
-			//return nil, types.ErrNotImplemented
-		}
-		volumeSD := &types.Volume{
-			Name: blob.Name,
-			ID:   bID,
-			// TODO:
-			//AvailabilityZone: *volume.AvailabilityZone,
-			//Encrypted:        *volume.Encrypted,
-			Status:      bstate,
-			Type:        btype,
-			Size:        blob.Properties.ContentLength,
-			Attachments: attachmentsSD,
-		}
-
-		// Some volume types have no IOPS, so we get nil in volume.Iops
-		//if volume.Iops != nil {
-		//	volumeSD.IOPS = *volume.Iops
-		//}
-
-		volumesSD = append(volumesSD, volumeSD)
 	}
 	return volumesSD, nil
+}
+
+func (d *driver) toTypeVolume(
+	ctx types.Context,
+	blob *blobStorage.Blob,
+	attachments types.VolumeAttachmentsTypes) (*types.Volume, error) {
+
+	// Metadata can have these fileds:
+	// microsoftazurecompute_resourcegroupname:trex
+	// microsoftazurecompute_vmname:ttt
+	// microsoftazurecompute_disktype:DataDisk (or OSDisk)
+	// microsoftazurecompute_diskid:7d9df1c9-7b4f-41d4-a2e3-6870dfa573ba
+	// microsoftazurecompute_diskname:ttt-20161221-130722
+	// microsoftazurecompute_disksizeingb:50
+
+	btype := blob.Metadata["microsoftazurecompute_disktype"]
+	if btype == "" {
+		return nil, nil
+	}
+	bstate := "detached"
+	if blob.Metadata["microsoftazurecompute_vmname"] != "" {
+		bstate = "attached"
+	}
+	bID := blob.Name
+	if idMeta := blob.Metadata["microsoftazurecompute_diskid"]; idMeta != "" {
+		bID = idMeta
+	}
+	var attachmentsSD []*types.VolumeAttachment
+	if attachments.Requested() {
+		// TODO:
+		//return nil, types.ErrNotImplemented
+	}
+
+	volumeSD := &types.Volume{
+		Name: blob.Name,
+		ID:   bID,
+		// TODO:
+		//AvailabilityZone: *volume.AvailabilityZone,
+		//Encrypted:        *volume.Encrypted,
+		Status:      bstate,
+		Type:        btype,
+		Size:        blob.Properties.ContentLength,
+		Attachments: attachmentsSD,
+	}
+
+	// Some volume types have no IOPS, so we get nil in volume.Iops
+	//if volume.Iops != nil {
+	//	volumeSD.IOPS = *volume.Iops
+	//}
+
+	return volumeSD, nil
 }
 
 func (d *driver) diskURI(name string) string {
