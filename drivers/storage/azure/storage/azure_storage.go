@@ -258,7 +258,7 @@ func (d *driver) Volumes(
 	ctx types.Context,
 	opts *types.VolumesOpts) ([]*types.Volume, error) {
 
-	list, err := mustSession(ctx).blobClient.ListBlobs(d.container, blobStorage.ListBlobsParameters{})
+	list, err := mustSession(ctx).blobClient.ListBlobs(d.container, blobStorage.ListBlobsParameters{Include: "metadata"})
 
 	if err != nil {
 		return nil, goof.WithError("error listing blobs", err)
@@ -434,9 +434,12 @@ func (d *driver) getStorageAccessKey() string {
 
 func (d *driver) getContainer() string {
 	if result := os.Getenv("AZURE_CONTAINER"); result != "" {
-	return result
+		return result
 	}
-	return d.config.GetString(azure.ConfigAZUREContainerKey)
+	if result := d.config.GetString(azure.ConfigAZUREContainerKey); result != "" {
+		return result
+	}
+	return "vhds"
 }
 
 func (d *driver) getClientID() string {
@@ -475,8 +478,6 @@ func (d *driver) tag() string {
 
 var errGetLocDevs = goof.New("error getting local devices from context")
 
-var extRX = regexp.MustCompile(".*\\.vhd$")
-
 func (d *driver) toTypesVolume(
 	ctx types.Context,
 	blobs *[]blobStorage.Blob,
@@ -497,31 +498,47 @@ func (d *driver) toTypesVolume(
 
 	var volumesSD []*types.Volume
 	for _, blob := range *blobs {
-//		if blob.Properties.BlobType == blobStorage.BlobTypePage || blob.Properties.BlobType == "" {
-		if extRX.MatchString(blob.Name) {
-			var attachmentsSD []*types.VolumeAttachment
-			if attachments.Requested() {
-// TODO:
-//				return nil, types.ErrNotImplemented 
-			}
-			volumeSD := &types.Volume{
-				Name:             blob.Name,
-				ID:               blob.Name,
-// TODO:
-//				AvailabilityZone: *volume.AvailabilityZone,
-//				Encrypted:        *volume.Encrypted,
-//				Status:           *volume.State,
-//				Type:             *volume.VolumeType,
-				Size:             blob.Properties.ContentLength,
-				Attachments:      attachmentsSD,
-			}
 
-			// Some volume types have no IOPS, so we get nil in volume.Iops
-//			if volume.Iops != nil {
-//				volumeSD.IOPS = *volume.Iops
-//			}
-			volumesSD = append(volumesSD, volumeSD)
+		// Metadata can have these fileds:
+		// microsoftazurecompute_resourcegroupname:trex
+		// microsoftazurecompute_vmname:ttt
+		// microsoftazurecompute_disktype:DataDisk (or OSDisk)
+		// microsoftazurecompute_diskid:7d9df1c9-7b4f-41d4-a2e3-6870dfa573ba
+		// microsoftazurecompute_diskname:ttt-20161221-130722
+		// microsoftazurecompute_disksizeingb:50
+
+		btype := blob.Metadata["microsoftazurecompute_disktype"]
+		if btype == "" {
+			continue
 		}
+		bstate := "detached"
+		if blob.Metadata["microsoftazurecompute_vmname"] != "" {
+			bstate = "attached"
+		}
+
+		var attachmentsSD []*types.VolumeAttachment
+		if attachments.Requested() {
+			// TODO:
+			//return nil, types.ErrNotImplemented 
+		}
+		volumeSD := &types.Volume{
+			Name:             blob.Name,
+			ID:               blob.Name,
+			// TODO:
+			//AvailabilityZone: *volume.AvailabilityZone,
+			//Encrypted:        *volume.Encrypted,
+			Status:           bstate,
+			Type:             btype,
+			Size:             blob.Properties.ContentLength,
+			Attachments:      attachmentsSD,
+		}
+
+		// Some volume types have no IOPS, so we get nil in volume.Iops
+		//if volume.Iops != nil {
+		//	volumeSD.IOPS = *volume.Iops
+		//}
+
+		volumesSD = append(volumesSD, volumeSD)
 	}
 	return volumesSD, nil
 }
