@@ -16,39 +16,42 @@ const (
 
 	// DefaultMaxRetries is the max number of times to retry failed operations
 	DefaultMaxRetries = 10
+	DefaultUseHTTPS   = true
 
 	// Config keys:
 	// Authorization keys
-	TenantIDKey       = "tenantID"
-	ClientIDKey       = "clientID"
-	ClientSecretKey   = "clientSecret"
-	CertPathKey       = "certPath"
+	TenantIDKey     = "tenantID"
+	ClientIDKey     = "clientID"
+	ClientSecretKey = "clientSecret"
+	CertPathKey     = "certPath"
 
 	// Storage auth keys
-	StorageAccount    = "storageAccount"
-	StorageAccessKey  = "storageAccessKey"
+	StorageAccount   = "storageAccount"
+	StorageAccessKey = "storageAccessKey"
 	// TODO: add option to pass StorageURI
 
 	SubscriptionIDKey = "subscriptionID"
 	ResourceGroupKey  = "resourceGroup"
 	ContainerKey      = "container"
 	MaxRetriesKey     = "maxRetries"
+	UseHTTPS          = "useHTTPS"
 	TagKey            = "tag"
 )
 
 const (
-	ConfigAZURE                     = Name
-	ConfigAZURESubscriptionIDKey    = ConfigAZURE + "." + SubscriptionIDKey
-	ConfigAZUREResourceGroupKey     = ConfigAZURE + "." + ResourceGroupKey
-	ConfigAZURETenantIDKey          = ConfigAZURE + "." + TenantIDKey
-	ConfigAZUREStorageAccountKey    = ConfigAZURE + "." + StorageAccount
-	ConfigAZUREStorageAccessKeyKey  = ConfigAZURE + "." + StorageAccessKey
-	ConfigAZUREContainerKey         = ConfigAZURE + "." + ContainerKey
-	ConfigAZUREClientIDKey          = ConfigAZURE + "." + ClientIDKey
-	ConfigAZUREClientSecretKey      = ConfigAZURE + "." + ClientSecretKey
-	ConfigAZURECertPathKey          = ConfigAZURE + "." + CertPathKey
-	ConfigAZUREMaxRetriesKey        = ConfigAZURE + "." + MaxRetriesKey
-	ConfigAZURETagKey               = ConfigAZURE + "." + TagKey
+	ConfigAZURE                    = Name
+	ConfigAZURESubscriptionIDKey   = ConfigAZURE + "." + SubscriptionIDKey
+	ConfigAZUREResourceGroupKey    = ConfigAZURE + "." + ResourceGroupKey
+	ConfigAZURETenantIDKey         = ConfigAZURE + "." + TenantIDKey
+	ConfigAZUREStorageAccountKey   = ConfigAZURE + "." + StorageAccount
+	ConfigAZUREStorageAccessKeyKey = ConfigAZURE + "." + StorageAccessKey
+	ConfigAZUREContainerKey        = ConfigAZURE + "." + ContainerKey
+	ConfigAZUREClientIDKey         = ConfigAZURE + "." + ClientIDKey
+	ConfigAZUREClientSecretKey     = ConfigAZURE + "." + ClientSecretKey
+	ConfigAZURECertPathKey         = ConfigAZURE + "." + CertPathKey
+	ConfigAZUREMaxRetriesKey       = ConfigAZURE + "." + MaxRetriesKey
+	ConfigAZUREUseHTTPSKey         = ConfigAZURE + "." + UseHTTPS
+	ConfigAZURETagKey              = ConfigAZURE + "." + TagKey
 )
 
 func init() {
@@ -62,6 +65,7 @@ func init() {
 	r.Key(gofig.String, "", "", "", ConfigAZUREClientSecretKey)
 	r.Key(gofig.String, "", "", "", ConfigAZURECertPathKey)
 	r.Key(gofig.Int, "", DefaultMaxRetries, "", ConfigAZUREMaxRetriesKey)
+	r.Key(gofig.Bool, "", DefaultUseHTTPS, "", ConfigAZUREUseHTTPSKey)
 	r.Key(gofig.String, "", "", "Tag prefix for AZURE naming", ConfigAZURETagKey)
 
 	gofigCore.Register(r)

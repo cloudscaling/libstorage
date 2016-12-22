@@ -39,6 +39,8 @@ const (
 	waitVolumeAttach = "attach"
 	// waitVolumeDetach signifies to wait for volume detachment to complete
 	waitVolumeDetach = "detach"
+
+	blobServiceName = "blob"
 )
 
 type driver struct {
@@ -54,6 +56,7 @@ type driver struct {
 	clientSecret     string
 	certPath         string
 	maxRetries       int
+	useHTTPS         bool
 }
 
 func init() {
@@ -85,6 +88,8 @@ func (d *driver) Init(context types.Context, config gofig.Config) error {
 	d.resourceGroup = d.getResourceGroup()
 
 	d.maxRetries = d.getMaxRetries()
+
+	d.useHTTPS = d.getUseHTTPS()
 
 	context.Info("storage driver initialized")
 
@@ -366,9 +371,8 @@ func (d *driver) VolumeAttach(
 		return nil, "", goof.WithFieldsE(fields, "failed to attach volume to VM", err)
 	}
 
-	//TODO:
-	diskName := ""
-	diskURI := ""
+	diskName := volumeID
+	diskURI := d.diskURI(diskName)
 	disks := *vm.StorageProfile.DataDisks
 	disks = append(disks,
 		armCompute.DataDisk{
@@ -528,6 +532,13 @@ func (d *driver) getMaxRetries() int {
 	return d.config.GetInt(azure.ConfigAZUREMaxRetriesKey)
 }
 
+func (d *driver) getUseHTTPS() bool {
+	if result := os.Getenv("AZURE_USE_HTTPS"); result != "" {
+		return result == "true"
+	}
+	return d.config.GetBool(azure.ConfigAZUREUseHTTPSKey)
+}
+
 func (d *driver) tag() string {
 	return d.config.GetString(azure.ConfigAZURETagKey)
 }
@@ -606,6 +617,18 @@ func (d *driver) toTypesVolume(
 		volumesSD = append(volumesSD, volumeSD)
 	}
 	return volumesSD, nil
+}
+
+func (d *driver) diskURI(name string) string {
+
+	scheme := "http"
+	if d.useHTTPS {
+		scheme = "https"
+	}
+	host := fmt.Sprintf("%s://%s.%s.%s", scheme, d.storageAccount, blobServiceName,
+		autorestAzure.PublicCloud.ResourceManagerEndpoint)
+	uri := fmt.Sprintf("%s/%s/%s", host, d.container, name)
+	return uri
 }
 
 func (d *driver) getVM(ctx types.Context, name string) (
