@@ -20,11 +20,9 @@ import (
 	"github.com/rubiojr/go-vhd/vhd"
 
 	armCompute "github.com/Azure/azure-sdk-for-go/arm/compute"
-	armStorage "github.com/Azure/azure-sdk-for-go/arm/storage"
 	blobStorage "github.com/Azure/azure-sdk-for-go/storage"
 	autorestAzure "github.com/Azure/go-autorest/autorest/azure"
 
-	//azureRest "github.com/Azure/go-autorest/autorest/azure"
 	"golang.org/x/crypto/pkcs12"
 
 	"github.com/codedellemc/libstorage/api/context"
@@ -121,7 +119,6 @@ func (d *driver) Init(context types.Context, config gofig.Config) error {
 const cacheKeyC = "cacheKey"
 
 type azureSession struct {
-	accountClient *armStorage.AccountsClient
 	vmClient      *armCompute.VirtualMachinesClient
 	blobClient    *blobStorage.BlobStorageClient
 }
@@ -237,8 +234,6 @@ func (d *driver) Login(ctx types.Context) (interface{}, error) {
 		}
 	}
 
-	newAC := armStorage.NewAccountsClient(d.subscriptionID)
-	newAC.Authorizer = spt
 	newVMC := armCompute.NewVirtualMachinesClient(d.subscriptionID)
 	newVMC.Authorizer = spt
 	bc, err := blobStorage.NewBasicClient(d.storageAccount, d.storageAccessKey)
@@ -247,7 +242,6 @@ func (d *driver) Login(ctx types.Context) (interface{}, error) {
 	}
 	newBC := bc.GetBlobService()
 	session := azureSession{
-		accountClient: &newAC,
 		blobClient:    &newBC,
 		vmClient:      &newVMC,
 	}
@@ -898,8 +892,7 @@ func (d *driver) attachDisk(ctx types.Context, volumeName string, size int64, vm
 			},
 		},
 	}
-	// TODO: remove prints
-	fmt.Printf("\n\n---------------------------- attaching...\n\n")
+
 	_, err = mustSession(ctx).vmClient.CreateOrUpdate(d.resourceGroup, *vm.Name, newVM, nil)
 	if err != nil {
 		detail := err.Error()
@@ -910,7 +903,6 @@ func (d *driver) attachDisk(ctx types.Context, volumeName string, size int64, vm
 		}
 		return goof.WithError("failed to attach volume to VM", err)
 	}
-	fmt.Printf("\n\n---------------------------- attached.\n\n")
 
 	return nil
 }
