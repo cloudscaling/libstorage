@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v1"
 
 	"github.com/stretchr/testify/assert"
 )
