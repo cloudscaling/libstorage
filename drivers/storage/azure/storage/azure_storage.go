@@ -14,6 +14,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	gofig "github.com/akutz/gofig/types"
 	"github.com/akutz/goof"
@@ -236,6 +237,7 @@ func (d *driver) Login(ctx types.Context) (interface{}, error) {
 
 	newVMC := armCompute.NewVirtualMachinesClient(d.subscriptionID)
 	newVMC.Authorizer = spt
+	newVMC.PollingDelay = 5 * time.Second
 	bc, err := blobStorage.NewBasicClient(d.storageAccount, d.storageAccessKey)
 	if err != nil {
 		return nil, goof.WithError("Failed to create BlobStorage client", err)
