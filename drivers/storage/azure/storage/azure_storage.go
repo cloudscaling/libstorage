@@ -61,7 +61,6 @@ type driver struct {
 	clientID         string
 	clientSecret     string
 	certPath         string
-	maxRetries       int
 	useHTTPS         bool
 }
 
@@ -90,7 +89,6 @@ func (d *driver) Init(context types.Context, config gofig.Config) error {
 	if d.clientSecret == "" && d.certPath == "" {
 		context.Error("clientSecret or certPath must be set for login.")
 	}
-	d.maxRetries = d.getMaxRetries()
 
 	d.storageAccount = d.getStorageAccount()
 	d.storageAccessKey = d.getStorageAccessKey()
@@ -107,8 +105,6 @@ func (d *driver) Init(context types.Context, config gofig.Config) error {
 	if d.resourceGroup == "" {
 		context.Warning("resourceGroup is not set. Some operations will fail.")
 	}
-
-	d.maxRetries = d.getMaxRetries()
 
 	d.useHTTPS = d.getUseHTTPS()
 
@@ -664,10 +660,6 @@ func (d *driver) getCertPath() string {
 		return result
 	}
 	return d.config.GetString(azure.ConfigAZURECertPathKey)
-}
-
-func (d *driver) getMaxRetries() int {
-	return d.config.GetInt(azure.ConfigAZUREMaxRetriesKey)
 }
 
 func (d *driver) getUseHTTPS() bool {

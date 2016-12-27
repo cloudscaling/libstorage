@@ -14,43 +14,71 @@ const (
 	// TagDelimiter separates tags from volume or snapshot names
 	TagDelimiter = "/"
 
-	// DefaultMaxRetries is the max number of times to retry failed operations
-	DefaultMaxRetries = 10
+	// DefaultUseHTTPS - Use https prefix by default or not for Azure URI's
 	DefaultUseHTTPS   = true
 
-	// Config keys:
-	// Authorization keys
+	// TenantIDKey is a Directory ID from Azure
 	TenantIDKey     = "tenantID"
+	// ClientIDKey is an Application ID from Azure
 	ClientIDKey     = "clientID"
+	// ClientSecretKey is a secret of the application
 	ClientSecretKey = "clientSecret"
+	// CertPathKey is a path to application certificate in case of authorization via certificate
 	CertPathKey     = "certPath"
 
-	// Storage auth keys
+	// StorageAccount is a name of storage account
 	StorageAccount   = "storageAccount"
+	// StorageAccessKey is an access key of storage account
 	StorageAccessKey = "storageAccessKey"
 	// TODO: add option to pass StorageURI
 
+	// SubscriptionIDKey is an ID of subscription
 	SubscriptionIDKey = "subscriptionID"
+	// ResourceGroupKey is a name of resource group
 	ResourceGroupKey  = "resourceGroup"
+	// ContainerKey is a name of container in the storage account ('vhds' by default)
 	ContainerKey      = "container"
-	MaxRetriesKey     = "maxRetries"
+	// UseHTTPS is a flag about use https or not for making Azure URI's
 	UseHTTPS          = "useHTTPS"
+	// TagKey is a tag key
 	TagKey            = "tag"
 )
 
 const (
+	// ConfigAZURE is a config key
 	ConfigAZURE                    = Name
+
+	// ConfigAZURESubscriptionIDKey is a config key
 	ConfigAZURESubscriptionIDKey   = ConfigAZURE + "." + SubscriptionIDKey
+
+	// ConfigAZUREResourceGroupKey is a config key
 	ConfigAZUREResourceGroupKey    = ConfigAZURE + "." + ResourceGroupKey
+
+	// ConfigAZURETenantIDKey is a config key
 	ConfigAZURETenantIDKey         = ConfigAZURE + "." + TenantIDKey
+
+	// ConfigAZUREStorageAccountKey is a config key
 	ConfigAZUREStorageAccountKey   = ConfigAZURE + "." + StorageAccount
+
+	// ConfigAZUREStorageAccessKeyKey is a config key
 	ConfigAZUREStorageAccessKeyKey = ConfigAZURE + "." + StorageAccessKey
+
+	// ConfigAZUREContainerKey is a config key
 	ConfigAZUREContainerKey        = ConfigAZURE + "." + ContainerKey
+
+	// ConfigAZUREClientIDKey is a config key
 	ConfigAZUREClientIDKey         = ConfigAZURE + "." + ClientIDKey
+
+	// ConfigAZUREClientSecretKey is a config key
 	ConfigAZUREClientSecretKey     = ConfigAZURE + "." + ClientSecretKey
+
+	// ConfigAZURECertPathKey is a config key
 	ConfigAZURECertPathKey         = ConfigAZURE + "." + CertPathKey
-	ConfigAZUREMaxRetriesKey       = ConfigAZURE + "." + MaxRetriesKey
+
+	// ConfigAZUREUseHTTPSKey is a config key
 	ConfigAZUREUseHTTPSKey         = ConfigAZURE + "." + UseHTTPS
+
+	// ConfigAZURETagKey is a config key
 	ConfigAZURETagKey              = ConfigAZURE + "." + TagKey
 )
 
@@ -64,7 +92,6 @@ func init() {
 	r.Key(gofig.String, "", "", "", ConfigAZUREClientIDKey)
 	r.Key(gofig.String, "", "", "", ConfigAZUREClientSecretKey)
 	r.Key(gofig.String, "", "", "", ConfigAZURECertPathKey)
-	r.Key(gofig.Int, "", DefaultMaxRetries, "", ConfigAZUREMaxRetriesKey)
 	r.Key(gofig.Bool, "", DefaultUseHTTPS, "", ConfigAZUREUseHTTPSKey)
 	r.Key(gofig.String, "", "", "Tag prefix for AZURE naming", ConfigAZURETagKey)
 
