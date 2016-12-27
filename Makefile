@@ -7,8 +7,10 @@ BUILD_TAGS :=   gofig \
 ifneq (true,$(TRAVIS))
 BUILD_TAGS +=   libstorage_storage_driver \
 				libstorage_storage_driver_vfs \
+				libstorage_storage_driver_azure \
 				libstorage_storage_executor \
-				libstorage_storage_executor_vfs
+				libstorage_storage_executor_vfs \
+				libstorage_storage_executor_azure
 endif
 endif
 
@@ -1055,13 +1057,20 @@ endif
 	$(MAKE) build-lss
 
 parallel-test: $(filter-out ./drivers/storage/vfs/%,$(GO_TEST))
+mszure-parallel-test: $(filter-out ./drivers/storage/azure/%,$(GO_TEST))
 vfs-test: $(filter ./drivers/storage/vfs/%,$(GO_TEST))
+msazure-test: $(filter ./drivers/storage/azure/%,$(GO_TEST))
+
 test:
 	$(MAKE) vfs-test
 	$(MAKE) -j parallel-test
 
 test-debug:
 	env LIBSTORAGE_DEBUG=true $(MAKE) test
+
+test-azure:
+	$(MAKE) msazure-test
+	$(MAKE) -j mszure-parallel-test
 
 clean: $(GO_CLEAN)
 

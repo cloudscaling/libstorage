@@ -23,17 +23,23 @@ import (
 	azureUtils "github.com/codedellemc/libstorage/drivers/storage/azure/utils"
 )
 
+// Test instance ID, set to to real Azure instance if run test outside Azure instance
+const TEST_INSTANCE_ID = "ttt"
+
 // Put contents of sample config.yml here
 var (
 	configYAMLazure = []byte(`
-azure:
-  clientID: CLIENTID
-  clientSecret: CLIENTSECRET
-  tenantID: 1234567890
-  certPath: "/some/test/path/cert.pem"
-  container: "vhds"
-  storageAccount: "test-account"
-  storageAccessKey: "ACCESSKEY"`)
+        azure:
+          resourceGroup: "trex"
+          subscriptionID: "c971aa51-5850-460a-b300-3265d4af154b"
+          tenantID: "ebbc4596-9828-453c-b95e-b8cb122f45bd"
+          clientID: "5d7fbebc-2e7b-487d-bf6e-04e4bee8e8cc"
+          clientSecret: "fill_your_secret"
+          certPath: ""
+          container: "vhds"
+          storageAccount: "trexdisks256"
+          storageAccessKey: "fill_your_seceret"
+`)
 )
 
 var volumeName string
@@ -50,13 +56,16 @@ func skipTests() bool {
 func init() {
 	uuid, _ := types.NewUUID()
 	uuids := strings.Split(uuid.String(), "-")
-	volumeName = uuids[0]
+	volumeName = "test-vol-" + uuids[0] + ".vhd"
 	uuid, _ = types.NewUUID()
 	uuids = strings.Split(uuid.String(), "-")
-	volumeName2 = uuids[0]
+	volumeName2 = "test-vol-" + uuids[0] + ".vhd"
 }
 
 func TestMain(m *testing.M) {
+	if TEST_INSTANCE_ID != "" {
+		os.Setenv("AZURE_INSTANCE_ID", TEST_INSTANCE_ID)
+	}
 	server.CloseOnAbort()
 	ec := m.Run()
 	os.Exit(ec)
@@ -71,7 +80,8 @@ func TestConfig(t *testing.T) {
 	}
 	tf := func(config gofig.Config, client types.Client, t *testing.T) {
 		assert.NotEqual(t, config.GetString("azure.clientID"), "")
-		assert.Equal(t, config.GetString("azure.clientID"), "")
+		assert.Equal(t, config.GetString("azure.clientID"),
+			"5d7fbebc-2e7b-487d-bf6e-04e4bee8e8cc")
 	}
 	apitests.Run(t, azure.Name, configYAMLazure, tf)
 }
@@ -112,51 +122,7 @@ func TestInstanceID(t *testing.T) {
 
 	// test resulting InstanceID
 	apitests.Run(
-		t, azure.Name, nil,
-		(&apitests.InstanceIDTest{
-			Driver:   azure.Name,
-			Expected: iid,
-		}).Test)
-
-}
-
-// Check if InstanceID metadata is properly returned by executor
-// and InstanceID.ID is filled out by InstanceInspect
-func TestInstanceIDAZURE(t *testing.T) {
-	if skipTests() {
-		t.SkipNow()
-	}
-
-	// create storage driver
-	sd, err := registry.NewStorageDriver("azure")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// initialize storage driver
-	ctx := context.Background()
-	if err := sd.Init(ctx, registry.NewConfig()); err != nil {
-		t.Fatal(err)
-	}
-	// Get Instance ID metadata from executor
-	iid, err := azureUtils.InstanceID(ctx)
-	assert.NoError(t, err)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Fill in Instance ID's ID field with InstanceInspect
-	ctx = ctx.WithValue(context.InstanceIDKey, iid)
-	i, err := sd.InstanceInspect(ctx, utils.NewStore())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	iid = i.InstanceID
-
-	// test resulting InstanceID
-	apitests.Run(
-		t, azure.Name, nil,
+		t, azure.Name, configYAMLazure,
 		(&apitests.InstanceIDTest{
 			Driver:   azure.Name,
 			Expected: iid,
@@ -222,7 +188,7 @@ func TestEncryptedVolumeCreateRemove(t *testing.T) {
 		vol := volumeCreateEncrypted(t, client, volumeName)
 		volumeRemove(t, client, vol.ID)
 	}
-	apitests.Run(t, azure, configYAMLazure, tf)
+	apitests.Run(t, azure.Name, configYAMLazure, tf)
 }
 
 // Test volume functionality from storage driver

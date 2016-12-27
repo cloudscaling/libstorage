@@ -116,8 +116,8 @@ func (d *driver) Init(context types.Context, config gofig.Config) error {
 const cacheKeyC = "cacheKey"
 
 type azureSession struct {
-	vmClient      *armCompute.VirtualMachinesClient
-	blobClient    *blobStorage.BlobStorageClient
+	vmClient   *armCompute.VirtualMachinesClient
+	blobClient *blobStorage.BlobStorageClient
 }
 
 var (
@@ -240,8 +240,8 @@ func (d *driver) Login(ctx types.Context) (interface{}, error) {
 	}
 	newBC := bc.GetBlobService()
 	session := azureSession{
-		blobClient:    &newBC,
-		vmClient:      &newVMC,
+		blobClient: &newBC,
+		vmClient:   &newVMC,
 	}
 	sessions[ckey] = &session
 
@@ -318,10 +318,17 @@ func (d *driver) VolumeCreate(ctx types.Context, volumeName string,
 		volumeName = volumeName + vhdExtension
 	}
 
+	size := int64(defaultNewDiskSizeGB)
+	if opts.Size != nil && *opts.Size != 0 {
+		size = *opts.Size
+	}
+	size *= size1GB
+
 	fields := map[string]interface{}{
-		"provider":   d.Name(),
-		"vmName":     vmName,
-		"volumeName": volumeName,
+		"provider":      d.Name(),
+		"vmName":        vmName,
+		"volumeName":    volumeName,
+		"size_in_bytes": size,
 	}
 
 	volume, _ := d.getVolume(ctx, volumeName)
@@ -334,10 +341,6 @@ func (d *driver) VolumeCreate(ctx types.Context, volumeName string,
 		return nil, goof.WithFieldsE(fields, "VM could not be obtained.", err)
 	}
 
-	size := int64(defaultNewDiskSizeGB) * size1GB
-	if opts.Size != nil && *opts.Size != 0 {
-		size = *opts.Size
-	}
 	blobClient := mustSession(ctx).blobClient
 	err = d.createDiskBlob(volumeName, size, blobClient)
 	if err != nil {
@@ -466,7 +469,7 @@ func (d *driver) VolumeAttach(
 		return nil, "", goof.WithFieldsE(fields, "VM could not be obtained.", err)
 	}
 
-	err = d.attachDisk(ctx, volumeID, volume.Size, vm)
+	err = d.attachDisk(ctx, volumeID, volume.Size*size1GB, vm)
 	if err != nil {
 		return nil, "", goof.WithFieldsE(fields, "failed to attach volume.", err)
 	}
@@ -756,7 +759,7 @@ func (d *driver) toTypeVolume(
 		ID:              blob.Name,
 		Status:          bstate,
 		Type:            btype,
-		Size:            blob.Properties.ContentLength,
+		Size:            blob.Properties.ContentLength / size1GB,
 		AttachmentState: attachState,
 		Attachments:     attachmentsSD,
 		// TODO:
@@ -812,7 +815,7 @@ func (d *driver) getVolume(ctx types.Context, volumeID string) (*types.Volume, e
 	return d.toTypeVolume(ctx, &list.Blobs[0], types.VolumeAttachmentsRequested)
 }
 
-func (d *driver) createDiskBlob(name string, size int64, blobClient *blobStorage.BlobStorageClient) (error) {
+func (d *driver) createDiskBlob(name string, size int64, blobClient *blobStorage.BlobStorageClient) error {
 	// create new blob
 	vhdSize := size + vhd.VHD_HEADER_SIZE
 	err := blobClient.PutPageBlob(d.container, name, vhdSize, nil)
@@ -859,7 +862,7 @@ func (d *driver) getNextDiskLun(vm *armCompute.VirtualMachine) (int32, error) {
 	return -1, goof.New("Free Lun could not be found.")
 }
 
-func (d *driver) attachDisk(ctx types.Context, volumeName string, size int64, vm *armCompute.VirtualMachine) (error) {
+func (d *driver) attachDisk(ctx types.Context, volumeName string, size int64, vm *armCompute.VirtualMachine) error {
 	lun, err := d.getNextDiskLun(vm)
 	if err != nil {
 		return goof.WithError("Could not find find an empty Lun to attach disk to.", err)
@@ -871,7 +874,7 @@ func (d *driver) attachDisk(ctx types.Context, volumeName string, size int64, vm
 	disks = append(disks,
 		armCompute.DataDisk{
 			Name:         &volumeName,
-			Vhd:          &armCompute.VirtualHardDisk { URI: &uri },
+			Vhd:          &armCompute.VirtualHardDisk{URI: &uri},
 			Lun:          &lun,
 			CreateOption: armCompute.Attach,
 			DiskSizeGB:   &sizeGB,
