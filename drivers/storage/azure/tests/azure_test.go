@@ -45,6 +45,41 @@ var (
 var volumeName string
 var volumeName2 string
 
+type CleanupIface interface {
+	cleanup(key string)
+}
+
+type CleanupObjectContextT struct {
+	objects map[string]CleanupIface
+}
+
+var cleanupObjectContext CleanupObjectContextT
+
+func (ctx *CleanupObjectContextT) remove(key string) {
+	delete(ctx.objects, key)
+}
+
+func (ctx *CleanupObjectContextT) cleanup() {
+	for key, value := range ctx.objects {
+		value.cleanup(key)
+		delete(ctx.objects, key)
+	}
+}
+
+type CleanupVolume struct {
+	vol    *types.Volume
+	client types.Client
+}
+
+func (ctx *CleanupObjectContextT) add(key string, vol *types.Volume, client types.Client) {
+	cobj := &CleanupVolume{vol: vol, client: client}
+	ctx.objects[key] = cobj
+}
+
+func (cvol *CleanupVolume) cleanup(key string) {
+	cvol.client.API().VolumeRemove(nil, azure.Name, cvol.vol.Name)
+}
+
 // Check environment vars to see whether or not to run this test
 func skipTests() bool {
 	travis, _ := strconv.ParseBool(os.Getenv("TRAVIS"))
@@ -84,6 +119,7 @@ func TestConfig(t *testing.T) {
 			"5d7fbebc-2e7b-487d-bf6e-04e4bee8e8cc")
 	}
 	apitests.Run(t, azure.Name, configYAMLazure, tf)
+	cleanupObjectContext.cleanup()
 }
 
 // Check if InstanceID metadata is properly returned by executor
@@ -127,7 +163,7 @@ func TestInstanceID(t *testing.T) {
 			Driver:   azure.Name,
 			Expected: iid,
 		}).Test)
-
+	cleanupObjectContext.cleanup()
 }
 
 // Test if Services are configured and returned properly from the client
@@ -145,6 +181,7 @@ func TestServices(t *testing.T) {
 		assert.True(t, ok)
 	}
 	apitests.Run(t, azure.Name, configYAMLazure, tf)
+	cleanupObjectContext.cleanup()
 }
 
 // Test volume functionality from storage driver
@@ -163,6 +200,7 @@ func TestVolumeAttach(t *testing.T) {
 		volumeRemove(t, client, vol.ID)
 	}
 	apitests.Run(t, azure.Name, configYAMLazure, tf)
+	cleanupObjectContext.cleanup()
 }
 
 // Test volume functionality from storage driver
@@ -176,6 +214,7 @@ func TestVolumeCreateRemove(t *testing.T) {
 		volumeRemove(t, client, vol.ID)
 	}
 	apitests.Run(t, azure.Name, configYAMLazure, tf)
+	cleanupObjectContext.cleanup()
 }
 
 // Test volume functionality from storage driver
@@ -189,6 +228,7 @@ func TestEncryptedVolumeCreateRemove(t *testing.T) {
 		volumeRemove(t, client, vol.ID)
 	}
 	apitests.Run(t, azure.Name, configYAMLazure, tf)
+	cleanupObjectContext.cleanup()
 }
 
 // Test volume functionality from storage driver
@@ -208,6 +248,7 @@ func TestVolumes(t *testing.T) {
 		volumeRemove(t, client, vol2.ID)
 	}
 	apitests.Run(t, azure.Name, configYAMLazure, tf)
+	cleanupObjectContext.cleanup()
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -232,18 +273,21 @@ func volumeCreate(
 	}
 
 	// Send request and retrieve created libStorage types.Volume
-	reply, err := client.API().VolumeCreate(nil, azure.Name, volumeCreateRequest)
+	vol, err := client.API().VolumeCreate(nil, azure.Name, volumeCreateRequest)
 	assert.NoError(t, err)
 	if err != nil {
 		t.FailNow()
 		t.Error("failed volumeCreate")
 	}
-	apitests.LogAsJSON(reply, t)
+	apitests.LogAsJSON(vol, t)
 
-	// Check if name and size are same
-	assert.Equal(t, volumeName, reply.Name)
-	assert.Equal(t, size, reply.Size)
-	return reply
+	// Add obj to automated cleanup in case of errors
+	cleanupObjectContext.add(vol.ID, vol, client)
+
+	// Check volume options
+	assert.Equal(t, volumeName, vol.Name)
+	assert.Equal(t, size, vol.Size)
+	return vol
 }
 
 // Test volume creation specifying size, volume name, and encryption
@@ -267,19 +311,22 @@ func volumeCreateEncrypted(
 	}
 
 	// Send request and retrieve created libStorage types.Volume
-	reply, err := client.API().VolumeCreate(nil, azure.Name, volumeCreateRequest)
+	vol, err := client.API().VolumeCreate(nil, azure.Name, volumeCreateRequest)
 	assert.NoError(t, err)
 	if err != nil {
 		t.FailNow()
 		t.Error("failed volumeCreate")
 	}
-	apitests.LogAsJSON(reply, t)
+	apitests.LogAsJSON(vol, t)
+
+	// Add obj to automated cleanup in case of errors
+	cleanupObjectContext.add(vol.ID, vol, client)
 
 	// Check if name and size are same, and volume is encrypted
-	assert.Equal(t, volumeName, reply.Name)
-	assert.Equal(t, size, reply.Size)
-	assert.Equal(t, encrypted, reply.Encrypted)
-	return reply
+	assert.Equal(t, volumeName, vol.Name)
+	assert.Equal(t, size, vol.Size)
+	assert.Equal(t, encrypted, vol.Encrypted)
+	return vol
 }
 
 // Test volume retrieval by volume name using Volumes, which retrieves all volumes
@@ -345,6 +392,8 @@ func volumeRemove(t *testing.T, client types.Client, volumeID string) {
 		t.Error("failed volumeRemove")
 		t.FailNow()
 	}
+
+	cleanupObjectContext.remove(volumeID)
 }
 
 // Test volume attachment by volume ID
