@@ -298,7 +298,7 @@ func (d *driver) VolumeInspect(
 	volumeID string,
 	opts *types.VolumeInspectOpts) (*types.Volume, error) {
 
-	return d.getVolume(ctx, volumeID)
+	return d.getVolume(ctx, volumeID, opts.Attachments)
 }
 
 // VolumeCreate creates a new volume.
@@ -333,7 +333,7 @@ func (d *driver) VolumeCreate(ctx types.Context, volumeName string,
 		"size_in_bytes": size,
 	}
 
-	volume, _ := d.getVolume(ctx, volumeName)
+	volume, _ := d.getVolume(ctx, volumeName, types.VolAttNone)
 	if volume != nil {
 		return nil, goof.WithFields(fields, "volume is already exists")
 	}
@@ -349,7 +349,7 @@ func (d *driver) VolumeCreate(ctx types.Context, volumeName string,
 		return nil, goof.WithFieldsE(fields, "failed to create volume for VM", err)
 	}
 
-	volume, err = d.getVolume(ctx, volumeName)
+	volume, err = d.getVolume(ctx, volumeName, types.VolAttNone)
 	if err != nil {
 		d.deleteDiskBlob(volumeName, blobClient)
 		return nil, goof.WithFieldsE(fields, "failed to get just created/attached volume", err)
@@ -429,7 +429,7 @@ func (d *driver) VolumeAttach(
 		"nextDevice": *opts.NextDevice,
 	}
 
-	volume, err := d.getVolume(ctx, volumeID)
+	volume, err := d.getVolume(ctx, volumeID, types.VolumeAttachmentsRequested)
 	if err != nil {
 		return nil, "", goof.WithFieldsE(fields, "failed to get volume for attach", err)
 	}
@@ -466,7 +466,7 @@ func (d *driver) VolumeAttach(
 		return nil, "", goof.WithFieldsE(fields, "failed to attach volume.", err)
 	}
 
-	volume, err = d.getVolume(ctx, volumeID)
+	volume, err = d.getVolume(ctx, volumeID, types.VolumeAttachmentsRequested)
 	if err != nil {
 		return nil, "", goof.WithFieldsE(fields, "failed to get just created/attached volume", err)
 	}
@@ -497,7 +497,7 @@ func (d *driver) VolumeDetach(
 		"volumeID": volumeID,
 	}
 
-	volume, err := d.getVolume(ctx, volumeID)
+	volume, err := d.getVolume(ctx, volumeID, types.VolumeAttachmentsRequested)
 	if err != nil {
 		return nil, goof.WithFieldsE(fields, "failed to get volume", err)
 	}
@@ -532,7 +532,7 @@ func (d *driver) VolumeDetach(
 		return nil, goof.WithFieldsE(fields, "failed to detach volume", err)
 	}
 
-	volume, err = d.getVolume(ctx, volumeID)
+	volume, err = d.getVolume(ctx, volumeID, types.VolumeAttachmentsRequested)
 	if err != nil {
 		return nil, goof.WithFieldsE(fields, "failed to get volume", err)
 	}
@@ -736,11 +736,28 @@ func (d *driver) toTypeVolume(
 				ID:     blob.Metadata["microsoftazurecompute_vmname"],
 				Driver: d.name,
 			}
-			attachment := types.VolumeAttachment{
-				InstanceID: &attachedInstanceID,
-				VolumeID:   blob.Name,
+			if attachments.Mine() {
+				id, ok := context.InstanceID(ctx)
+				if !ok || id == nil {
+					return nil, goof.New("Can't get isntance ID to filter volume")
+				}
+
+				if id.ID == attachedInstanceID.ID {
+					attachmentsSD = append(
+						attachmentsSD,
+						&types.VolumeAttachment{
+							InstanceID: &attachedInstanceID,
+							VolumeID:   blob.Name,
+						})
+				}
+			} else {
+				attachmentsSD = append(
+					attachmentsSD,
+					&types.VolumeAttachment{
+						InstanceID: &attachedInstanceID,
+						VolumeID:   blob.Name,
+					})
 			}
-			attachmentsSD = append(attachmentsSD, &attachment)
 		}
 		// TODO:
 		// impl filter according to input the patameter attachments
@@ -793,7 +810,7 @@ func (d *driver) getVM(ctx types.Context, name string) (
 	return &vm, nil
 }
 
-func (d *driver) getVolume(ctx types.Context, volumeID string) (*types.Volume, error) {
+func (d *driver) getVolume(ctx types.Context, volumeID string, attachments types.VolumeAttachmentsTypes) (*types.Volume, error) {
 
 	list, err := mustSession(ctx).blobClient.ListBlobs(d.container,
 		blobStorage.ListBlobsParameters{Prefix: volumeID, Include: "metadata"})
@@ -804,7 +821,7 @@ func (d *driver) getVolume(ctx types.Context, volumeID string) (*types.Volume, e
 		return nil, goof.New("error to get volume")
 	}
 	// Convert retrieved volumes to libStorage types.Volume
-	return d.toTypeVolume(ctx, &list.Blobs[0], types.VolumeAttachmentsRequested)
+	return d.toTypeVolume(ctx, &list.Blobs[0], attachments)
 }
 
 func (d *driver) createDiskBlob(name string, size int64, blobClient *blobStorage.BlobStorageClient) error {
