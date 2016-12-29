@@ -226,11 +226,19 @@ func TestVolumeAttachDetach(t *testing.T) {
 		vol = volumeCreate(t, client, volumeName)
 		_ = volumeAttach(t, client, vol.ID)
 		_ = volumeInspectAttached(t, client, vol.ID)
+		_ = volumeInspectAttachedToMyInstance(t, client, vol.ID)
+	}
+	tf2 := func(config gofig.Config, client types.Client, t *testing.T) {
+		_ = volumeInspectAttachedToMyInstanceWithForeignInstance(t, client, vol.ID)
+	}
+	tf3 := func(config gofig.Config, client types.Client, t *testing.T) {
 		_ = volumeDetach(t, client, vol.ID)
 		_ = volumeInspectDetached(t, client, vol.ID)
 		volumeRemove(t, client, vol.ID)
 	}
 	apitests.Run(t, azure.Name, configYAMLazure, tf)
+	apitests.RunWithClientType(t, types.ControllerClient, azure.Name, configYAMLazure, tf2)
+	apitests.Run(t, azure.Name, configYAMLazure, tf3)
 	cleanupObjectContext.cleanup()
 }
 
@@ -248,13 +256,11 @@ func volumeCreate(
 		"priority": 2,
 		"owner":    "root@example.com",
 	}
-
 	volumeCreateRequest := &types.VolumeCreateRequest{
 		Name: volumeName,
 		Size: &size,
 		Opts: opts,
 	}
-
 	// Send request and retrieve created libStorage types.Volume
 	vol, err := client.API().VolumeCreate(nil, azure.Name, volumeCreateRequest)
 	assert.NoError(t, err)
@@ -263,10 +269,8 @@ func volumeCreate(
 		t.Error("failed volumeCreate")
 	}
 	apitests.LogAsJSON(vol, t)
-
 	// Add obj to automated cleanup in case of errors
 	cleanupObjectContext.add(vol.ID, vol, client)
-
 	// Check volume options
 	assert.Equal(t, volumeName, vol.Name)
 	assert.Equal(t, size, vol.Size)
@@ -304,12 +308,10 @@ func volumeRemove(t *testing.T, client types.Client, volumeID string) {
 	err := client.API().VolumeRemove(
 		nil, azure.Name, volumeID)
 	assert.NoError(t, err)
-
 	if err != nil {
 		t.Error("failed volumeRemove")
 		t.FailNow()
 	}
-
 	cleanupObjectContext.remove(volumeID)
 }
 
@@ -325,12 +327,10 @@ func volumeAttach(
 		t.Error("error getting next device name from executor")
 		t.FailNow()
 	}
-
 	reply, token, err := client.API().VolumeAttach(
 		nil, azure.Name, volumeID, &types.VolumeAttachRequest{
 			NextDeviceName: &nextDevice,
 		})
-
 	assert.NoError(t, err)
 	if err != nil {
 		t.Error("failed volumeAttach")
@@ -338,7 +338,6 @@ func volumeAttach(
 	}
 	apitests.LogAsJSON(reply, t)
 	assert.NotEqual(t, token, "")
-
 	return reply
 }
 
@@ -351,7 +350,6 @@ func volumeInspect(
 	log.WithField("volumeID", volumeID).Info("inspecting volume")
 	reply, err := client.API().VolumeInspect(nil, azure.Name, volumeID, 0)
 	assert.NoError(t, err)
-
 	if err != nil {
 		t.Error("failed volumeInspect")
 		t.FailNow()
@@ -366,15 +364,50 @@ func volumeInspectAttached(
 	log.WithField("volumeID", volumeID).Info("inspecting volume")
 	reply, err := client.API().VolumeInspect(
 		nil, azure.Name, volumeID,
-		types.VolAttReqTrue)
+		types.VolAttReq)
 	assert.NoError(t, err)
-
 	if err != nil {
 		t.Error("failed volumeInspectAttached")
 		t.FailNow()
 	}
 	apitests.LogAsJSON(reply, t)
 	assert.Len(t, reply.Attachments, 1)
+	return reply
+}
+
+// Test if volume is attached to specified instance
+func volumeInspectAttachedToMyInstance(
+	t *testing.T, client types.Client, volumeID string) *types.Volume {
+	log.WithField("volumeID", volumeID).Info("inspecting volume attached to my instance")
+	reply, err := client.API().VolumeInspect(nil, azure.Name, volumeID, types.VolAttReqForInstance)
+	assert.NoError(t, err)
+	if err != nil {
+		t.Error("failed volumeInspectAttached")
+		t.FailNow()
+	}
+	apitests.LogAsJSON(reply, t)
+	assert.Len(t, reply.Attachments, 1)
+	return reply
+}
+
+// Test if volume is attached to my instance with foreign instance in filter
+func volumeInspectAttachedToMyInstanceWithForeignInstance(
+	t *testing.T, client types.Client, volumeID string) *types.Volume {
+	ctx := context.Background()
+	iidm := types.InstanceIDMap{"azure": &types.InstanceID{ID: "none", Driver: "azure"}}
+	ctx = ctx.WithValue(context.AllInstanceIDsKey, iidm)
+	log.WithField("volumeID", volumeID).Info(
+		"inspecting volume attached to my instance with foreign instance in filter")
+	reply, err := client.API().VolumeInspect(
+		ctx, azure.Name, volumeID,
+		types.VolAttReqForInstance)
+	assert.NoError(t, err)
+	if err != nil {
+		t.Error("failed volumeInspectAttached")
+		t.FailNow()
+	}
+	apitests.LogAsJSON(reply, t)
+	assert.Len(t, reply.Attachments, 0)
 	return reply
 }
 
