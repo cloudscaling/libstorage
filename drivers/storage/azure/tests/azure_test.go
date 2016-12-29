@@ -23,9 +23,6 @@ import (
 	azureUtils "github.com/codedellemc/libstorage/drivers/storage/azure/utils"
 )
 
-// Test instance ID, set to to real Azure instance if run test outside Azure instance
-const TEST_INSTANCE_ID = "ttt"
-
 // Put contents of sample config.yml here
 var (
 	configYAMLazure = []byte(`
@@ -77,6 +74,7 @@ func (ctx *CleanupObjectContextT) add(key string, vol *types.Volume, client type
 }
 
 func (cvol *CleanupVolume) cleanup(key string) {
+	cvol.client.API().VolumeDetach(nil, azure.Name, cvol.vol.Name, &types.VolumeDetachRequest{Force: true})
 	cvol.client.API().VolumeRemove(nil, azure.Name, cvol.vol.Name)
 }
 
@@ -95,12 +93,12 @@ func init() {
 	uuid, _ = types.NewUUID()
 	uuids = strings.Split(uuid.String(), "-")
 	volumeName2 = "test-vol-" + uuids[0] + ".vhd"
+	cleanupObjectContext = CleanupObjectContextT{
+		objects: make(map[string]CleanupIface),
+	}
 }
 
 func TestMain(m *testing.M) {
-	if TEST_INSTANCE_ID != "" {
-		os.Setenv("AZURE_INSTANCE_ID", TEST_INSTANCE_ID)
-	}
 	server.CloseOnAbort()
 	ec := m.Run()
 	os.Exit(ec)
@@ -185,25 +183,6 @@ func TestServices(t *testing.T) {
 }
 
 // Test volume functionality from storage driver
-func TestVolumeAttach(t *testing.T) {
-	if skipTests() {
-		t.SkipNow()
-	}
-	var vol *types.Volume
-	tf := func(config gofig.Config, client types.Client, t *testing.T) {
-		vol = volumeCreate(t, client, volumeName)
-		_ = volumeAttach(t, client, vol.ID)
-		_ = volumeInspectAttached(t, client, vol.ID)
-		_ = volumeInspectDetachedFail(t, client, vol.ID)
-		_ = volumeDetach(t, client, vol.ID)
-		_ = volumeInspectDetached(t, client, vol.ID)
-		volumeRemove(t, client, vol.ID)
-	}
-	apitests.Run(t, azure.Name, configYAMLazure, tf)
-	cleanupObjectContext.cleanup()
-}
-
-// Test volume functionality from storage driver
 func TestVolumeCreateRemove(t *testing.T) {
 	if skipTests() {
 		t.SkipNow()
@@ -211,20 +190,6 @@ func TestVolumeCreateRemove(t *testing.T) {
 
 	tf := func(config gofig.Config, client types.Client, t *testing.T) {
 		vol := volumeCreate(t, client, volumeName)
-		volumeRemove(t, client, vol.ID)
-	}
-	apitests.Run(t, azure.Name, configYAMLazure, tf)
-	cleanupObjectContext.cleanup()
-}
-
-// Test volume functionality from storage driver
-func TestEncryptedVolumeCreateRemove(t *testing.T) {
-	if skipTests() {
-		t.SkipNow()
-	}
-
-	tf := func(config gofig.Config, client types.Client, t *testing.T) {
-		vol := volumeCreateEncrypted(t, client, volumeName)
 		volumeRemove(t, client, vol.ID)
 	}
 	apitests.Run(t, azure.Name, configYAMLazure, tf)
@@ -246,6 +211,24 @@ func TestVolumes(t *testing.T) {
 
 		volumeRemove(t, client, vol1.ID)
 		volumeRemove(t, client, vol2.ID)
+	}
+	apitests.Run(t, azure.Name, configYAMLazure, tf)
+	cleanupObjectContext.cleanup()
+}
+
+// Test volume functionality from storage driver
+func TestVolumeAttachDetach(t *testing.T) {
+	if skipTests() {
+		t.SkipNow()
+	}
+	var vol *types.Volume
+	tf := func(config gofig.Config, client types.Client, t *testing.T) {
+		vol = volumeCreate(t, client, volumeName)
+		_ = volumeAttach(t, client, vol.ID)
+		_ = volumeInspectAttached(t, client, vol.ID)
+		_ = volumeDetach(t, client, vol.ID)
+		_ = volumeInspectDetached(t, client, vol.ID)
+		volumeRemove(t, client, vol.ID)
 	}
 	apitests.Run(t, azure.Name, configYAMLazure, tf)
 	cleanupObjectContext.cleanup()
@@ -290,45 +273,6 @@ func volumeCreate(
 	return vol
 }
 
-// Test volume creation specifying size, volume name, and encryption
-func volumeCreateEncrypted(
-	t *testing.T, client types.Client, volumeName string) *types.Volume {
-	log.WithField("volumeName", volumeName).Info("creating encrypted volume")
-	// Prepare request for storage driver call to create volume
-	size := int64(2)
-	encrypted := true
-
-	opts := map[string]interface{}{
-		"priority": 2,
-		"owner":    "root@example.com",
-	}
-
-	volumeCreateRequest := &types.VolumeCreateRequest{
-		Name:      volumeName,
-		Size:      &size,
-		Encrypted: &encrypted,
-		Opts:      opts,
-	}
-
-	// Send request and retrieve created libStorage types.Volume
-	vol, err := client.API().VolumeCreate(nil, azure.Name, volumeCreateRequest)
-	assert.NoError(t, err)
-	if err != nil {
-		t.FailNow()
-		t.Error("failed volumeCreate")
-	}
-	apitests.LogAsJSON(vol, t)
-
-	// Add obj to automated cleanup in case of errors
-	cleanupObjectContext.add(vol.ID, vol, client)
-
-	// Check if name and size are same, and volume is encrypted
-	assert.Equal(t, volumeName, vol.Name)
-	assert.Equal(t, size, vol.Size)
-	assert.Equal(t, encrypted, vol.Encrypted)
-	return vol
-}
-
 // Test volume retrieval by volume name using Volumes, which retrieves all volumes
 // from the storage driver without filtering, and filters the volumes externally.
 func volumeByName(
@@ -351,33 +295,6 @@ func volumeByName(
 	// No matching volumes found
 	t.FailNow()
 	t.Error("failed volumeByName")
-	return nil
-}
-
-// Test volume retrieval by volume ID using Volumes, which retrieves all
-// volumes from the storage driver without filtering, and filters the volumes
-// externally. Contrast with volumeInspect, which directly retrieves matching
-// volumes from the storage driver.
-func volumeByID(
-	t *testing.T, client types.Client, volumeID string) *types.Volume {
-	log.WithField("volumeID", volumeID).Info("get volume by azure.Name using ID")
-	// Retrieve all volumes
-	vols, err := client.API().Volumes(nil, 0)
-	assert.NoError(t, err)
-	if err != nil {
-		t.FailNow()
-	}
-	// Filter volumes to those under the azure service,
-	// and find a volume matching inputted volume ID
-	assert.Contains(t, vols, azure.Name)
-	for _, vol := range vols[azure.Name] {
-		if vol.ID == volumeID {
-			return vol
-		}
-	}
-	// No matching volumes found
-	t.FailNow()
-	t.Error("failed volumeByID")
 	return nil
 }
 
@@ -467,7 +384,7 @@ func volumeInspectDetached(
 	log.WithField("volumeID", volumeID).Info("inspecting volume")
 	reply, err := client.API().VolumeInspect(
 		nil, azure.Name, volumeID,
-		types.VolAttReqTrue)
+		types.VolAttNone)
 	assert.NoError(t, err)
 
 	if err != nil {
@@ -477,25 +394,6 @@ func volumeInspectDetached(
 	apitests.LogAsJSON(reply, t)
 	assert.Len(t, reply.Attachments, 0)
 	apitests.LogAsJSON(reply, t)
-	return reply
-}
-
-// Test if volume is attached, but VolumeInspect is called with the attachments
-// flag set to false, then its Attachments field should still be populated.
-// However, its Attachments' DeviceName field should not be populated.
-func volumeInspectDetachedFail(
-	t *testing.T, client types.Client, volumeID string) *types.Volume {
-
-	log.WithField("volumeID", volumeID).Info("inspecting volume")
-	reply, err := client.API().VolumeInspect(nil, azure.Name, volumeID, 0)
-	assert.NoError(t, err)
-
-	if err != nil {
-		t.Error("failed volumeInspectDetachedFail")
-		t.FailNow()
-	}
-	apitests.LogAsJSON(reply, t)
-	assert.Len(t, reply.Attachments, 1)
 	return reply
 }
 

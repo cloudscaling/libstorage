@@ -34,18 +34,16 @@ import (
 )
 
 const (
-	// waitVolumeCreate signifies to wait for volume creation to complete
-	waitVolumeCreate = "create"
-	// waitVolumeAttach signifies to wait for volume attachment to complete
-	waitVolumeAttach = "attach"
-	// waitVolumeDetach signifies to wait for volume detachment to complete
-	waitVolumeDetach = "detach"
-
+	// Name of Blob service in URL
 	blobServiceName = "blob"
 
+	// Required by Azure blob name suffix
 	vhdExtension = ".vhd"
 
-	size1GB              int64 = 1024 * 1024 * 1024
+	// Size 1GB
+	size1GB int64 = 1024 * 1024 * 1024
+
+	// Default new disk size
 	defaultNewDiskSizeGB int32 = 128
 )
 
@@ -307,6 +305,10 @@ func (d *driver) VolumeInspect(
 func (d *driver) VolumeCreate(ctx types.Context, volumeName string,
 	opts *types.VolumeCreateOpts) (*types.Volume, error) {
 
+	if opts.Encrypted != nil && *opts.Encrypted {
+		return nil, types.ErrNotImplemented
+	}
+
 	id, ok := context.InstanceID(ctx)
 	if !ok || id == nil {
 		return nil, goof.New("Can't create volume outside of Azure instance")
@@ -336,7 +338,7 @@ func (d *driver) VolumeCreate(ctx types.Context, volumeName string,
 		return nil, goof.WithFields(fields, "volume is already exists")
 	}
 
-	vm, err := d.getVM(ctx, vmName)
+	_, err := d.getVM(ctx, vmName)
 	if err != nil {
 		return nil, goof.WithFieldsE(fields, "VM could not be obtained.", err)
 	}
@@ -347,20 +349,10 @@ func (d *driver) VolumeCreate(ctx types.Context, volumeName string,
 		return nil, goof.WithFieldsE(fields, "failed to create volume for VM", err)
 	}
 
-	err = d.attachDisk(ctx, volumeName, size, vm)
-	if err != nil {
-		d.deleteDiskBlob(volumeName, blobClient)
-		return nil, goof.WithFieldsE(fields, "failed to attach created volume.", err)
-	}
-
 	volume, err = d.getVolume(ctx, volumeName)
 	if err != nil {
 		d.deleteDiskBlob(volumeName, blobClient)
 		return nil, goof.WithFieldsE(fields, "failed to get just created/attached volume", err)
-	}
-	if len(volume.Attachments) == 0 {
-		d.deleteDiskBlob(volumeName, blobClient)
-		return nil, goof.WithFieldsE(fields, "volume is not attached to VM", err)
 	}
 
 	return volume, nil
