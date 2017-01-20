@@ -14,6 +14,6 @@ import (
 // Other letters can be used for data volumes.
 var NextDeviceInfo = &types.NextDeviceInfo{
 	Prefix:  "sd",
-	Pattern: "[c-p]",
+	Pattern: "[c-z]",
 	Ignore:  false,
 }

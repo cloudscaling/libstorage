@@ -176,7 +176,6 @@ func (d *driver) Login(ctx types.Context) (interface{}, error) {
 	}
 
 	writeHkey(hkey, &d.subscriptionID)
-	writeHkey(hkey, &d.resourceGroup)
 	writeHkey(hkey, &d.tenantID)
 	writeHkey(hkey, &d.storageAccount)
 	writeHkey(hkey, &d.storageAccessKey)
@@ -186,8 +185,6 @@ func (d *driver) Login(ctx types.Context) (interface{}, error) {
 		writeHkey(hkey, &d.clientSecret)
 	} else if d.certPath != "" {
 		ctx.Debug("login to azure storage driver using clientCert")
-		// TODO: impl reading of cert
-		// TODO: impl for cert
 		certData, err = ioutil.ReadFile(d.certPath)
 		if err != nil {
 			return nil, goof.WithError("Failed to read provided certificate file", err)
@@ -269,7 +266,6 @@ func (d *driver) InstanceInspect(
 	iid := context.MustInstanceID(ctx)
 	return &types.Instance{
 		Name: iid.ID,
-		//Region:       iid.Fields[azure.InstanceIDFieldRegion],
 		InstanceID:   iid,
 		ProviderName: iid.Driver,
 	}, nil
@@ -331,11 +327,6 @@ func (d *driver) VolumeCreate(ctx types.Context, volumeName string,
 		"vmName":        vmName,
 		"volumeName":    volumeName,
 		"size_in_bytes": size,
-	}
-
-	volume, _ := d.getVolume(ctx, volumeName, types.VolAttNone)
-	if volume != nil {
-		return nil, goof.WithFields(fields, "volume is already exists")
 	}
 
 	_, err := d.getVM(ctx, vmName)
@@ -512,6 +503,8 @@ func (d *driver) VolumeDetach(
 
 	disks := *vm.StorageProfile.DataDisks
 	for i, disk := range disks {
+		// in Azure disk is  paged blob,
+		// blob name is case sensitive
 		if disk.Name != nil && *disk.Name == volumeID {
 			// found the disk
 			disks = append(disks[:i], disks[i+1:]...)
@@ -592,44 +585,26 @@ func (d *driver) getFullName(name string) string {
 
 // Retrieve config arguments
 func (d *driver) getSubscriptionID() string {
-	if result := os.Getenv("AZURE_SUBSCRIPTION_ID"); result != "" {
-		return result
-	}
 	return d.config.GetString(azure.ConfigAZURESubscriptionIDKey)
 }
 
 func (d *driver) getResourceGroup() string {
-	if result := os.Getenv("AZURE_RESOURCE_GROUP"); result != "" {
-		return result
-	}
 	return d.config.GetString(azure.ConfigAZUREResourceGroupKey)
 }
 
 func (d *driver) getTenantID() string {
-	if result := os.Getenv("AZURE_TENANT_ID"); result != "" {
-		return result
-	}
 	return d.config.GetString(azure.ConfigAZURETenantIDKey)
 }
 
 func (d *driver) getStorageAccount() string {
-	if result := os.Getenv("AZURE_STORAGE_ACCOUNT"); result != "" {
-		return result
-	}
 	return d.config.GetString(azure.ConfigAZUREStorageAccountKey)
 }
 
 func (d *driver) getStorageAccessKey() string {
-	if result := os.Getenv("AZURE_STORAGE_ACCESS_KEY"); result != "" {
-		return result
-	}
 	return d.config.GetString(azure.ConfigAZUREStorageAccessKeyKey)
 }
 
 func (d *driver) getContainer() string {
-	if result := os.Getenv("AZURE_CONTAINER"); result != "" {
-		return result
-	}
 	if result := d.config.GetString(azure.ConfigAZUREContainerKey); result != "" {
 		return result
 	}
@@ -637,30 +612,18 @@ func (d *driver) getContainer() string {
 }
 
 func (d *driver) getClientID() string {
-	if result := os.Getenv("AZURE_CLIENT_ID"); result != "" {
-		return result
-	}
 	return d.config.GetString(azure.ConfigAZUREClientIDKey)
 }
 
 func (d *driver) getClientSecret() string {
-	if result := os.Getenv("AZURE_CLIENT_SECRET"); result != "" {
-		return result
-	}
 	return d.config.GetString(azure.ConfigAZUREClientSecretKey)
 }
 
 func (d *driver) getCertPath() string {
-	if result := os.Getenv("AZURE_CERT_PATH"); result != "" {
-		return result
-	}
 	return d.config.GetString(azure.ConfigAZURECertPathKey)
 }
 
 func (d *driver) getUseHTTPS() bool {
-	if result := os.Getenv("AZURE_USE_HTTPS"); result != "" {
-		return result == "true"
-	}
 	return d.config.GetBool(azure.ConfigAZUREUseHTTPSKey)
 }
 
@@ -698,7 +661,7 @@ func (d *driver) toTypesVolume(
 	for _, blob := range *blobs {
 		volumeSD, error := d.toTypeVolume(ctx, &blob, attachments)
 		if error != nil {
-			ctx.WithError(error).Error("Failed to convert volume")
+			ctx.WithError(error).Warning("Failed to convert volume")
 		} else if volumeSD != nil {
 			volumesSD = append(volumesSD, volumeSD)
 		}

@@ -39,7 +39,7 @@ const (
 	// ContainerKey is a name of container in the storage account ('vhds' by default)
 	ContainerKey      = "container"
 	// UseHTTPS is a flag about use https or not for making Azure URI's
-	UseHTTPS          = "useHTTPS"
+	UseHTTPSKey       = "useHTTPS"
 	// TagKey is a tag key
 	TagKey            = "tag"
 )
@@ -76,7 +76,7 @@ const (
 	ConfigAZURECertPathKey         = ConfigAZURE + "." + CertPathKey
 
 	// ConfigAZUREUseHTTPSKey is a config key
-	ConfigAZUREUseHTTPSKey         = ConfigAZURE + "." + UseHTTPS
+	ConfigAZUREUseHTTPSKey         = ConfigAZURE + "." + UseHTTPSKey
 
 	// ConfigAZURETagKey is a config key
 	ConfigAZURETagKey              = ConfigAZURE + "." + TagKey

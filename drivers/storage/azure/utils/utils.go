@@ -37,8 +37,8 @@ func checkAzureMarkInFile(ctx types.Context) bool {
 	return false
 }
 
-// IsAzureInstance returns a flag indicating whether the executing host is an Azure
-// instance based on whether or not the metadata URL can be accessed.
+// IsAzureInstance returns a flag indicating whether the executing host
+// is an Azure instance .
 func IsAzureInstance(ctx types.Context) (bool, error) {
 	// http://blog.mszcool.com/index.php/2015/04/detecting-if-a-virtual-machine-runs-in-microsoft-azure-linux-windows-to-protect-your-software-when-distributed-via-the-azure-marketplace/
 	if id := os.Getenv("AZURE_INSTANCE_ID"); id != "" {

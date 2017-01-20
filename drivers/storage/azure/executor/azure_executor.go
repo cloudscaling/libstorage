@@ -59,6 +59,10 @@ func (d *driver) InstanceID(
 }
 
 var errNoAvaiDevice = goof.New("no available device")
+var nextDevRe = regexp.MustCompile("^/dev/" +
+	azureUtils.NextDeviceInfo.Prefix +
+        "(" + azureUtils.NextDeviceInfo.Pattern + ")")
+
 
 // NextDevice returns the next available device.
 func (d *driver) NextDevice(
@@ -79,10 +83,7 @@ func (d *driver) NextDevice(
 	localDeviceMapping := localDevices.DeviceMap
 
 	for localDevice := range localDeviceMapping {
-		re, _ := regexp.Compile(`^/dev/` +
-			azureUtils.NextDeviceInfo.Prefix +
-			`(` + azureUtils.NextDeviceInfo.Pattern + `)`)
-		res := re.FindStringSubmatch(localDevice)
+		res := nextDevRe.FindStringSubmatch(localDevice)
 		if len(res) > 0 {
 			localDeviceNames[res[1]] = true
 		}
