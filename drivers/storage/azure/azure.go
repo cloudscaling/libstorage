@@ -14,20 +14,22 @@ const (
 	// TagDelimiter separates tags from volume or snapshot names
 	TagDelimiter = "/"
 
-	// DefaultUseHTTPS - Use https prefix by default or not for Azure URI's
-	DefaultUseHTTPS   = true
+	// DefaultUseHTTPS - Use https prefix by default
+	// or not for Azure URI's
+	DefaultUseHTTPS = true
 
 	// TenantIDKey is a Directory ID from Azure
-	TenantIDKey     = "tenantID"
+	TenantIDKey = "tenantID"
 	// ClientIDKey is an Application ID from Azure
-	ClientIDKey     = "clientID"
+	ClientIDKey = "clientID"
 	// ClientSecretKey is a secret of the application
 	ClientSecretKey = "clientSecret"
-	// CertPathKey is a path to application certificate in case of authorization via certificate
-	CertPathKey     = "certPath"
+	// CertPathKey is a path to application certificate in case of
+	// authorization via certificate
+	CertPathKey = "certPath"
 
 	// StorageAccount is a name of storage account
-	StorageAccount   = "storageAccount"
+	StorageAccount = "storageAccount"
 	// StorageAccessKey is an access key of storage account
 	StorageAccessKey = "storageAccessKey"
 	// TODO: add option to pass StorageURI
@@ -35,51 +37,52 @@ const (
 	// SubscriptionIDKey is an ID of subscription
 	SubscriptionIDKey = "subscriptionID"
 	// ResourceGroupKey is a name of resource group
-	ResourceGroupKey  = "resourceGroup"
-	// ContainerKey is a name of container in the storage account ('vhds' by default)
-	ContainerKey      = "container"
+	ResourceGroupKey = "resourceGroup"
+	// ContainerKey is a name of container in the storage account
+	// ('vhds' by default)
+	ContainerKey = "container"
 	// UseHTTPS is a flag about use https or not for making Azure URI's
-	UseHTTPSKey       = "useHTTPS"
+	UseHTTPSKey = "useHTTPS"
 	// TagKey is a tag key
-	TagKey            = "tag"
+	TagKey = "tag"
 )
 
 const (
 	// ConfigAZURE is a config key
-	ConfigAZURE                    = Name
+	ConfigAZURE = Name
 
 	// ConfigAZURESubscriptionIDKey is a config key
-	ConfigAZURESubscriptionIDKey   = ConfigAZURE + "." + SubscriptionIDKey
+	ConfigAZURESubscriptionIDKey = ConfigAZURE + "." + SubscriptionIDKey
 
 	// ConfigAZUREResourceGroupKey is a config key
-	ConfigAZUREResourceGroupKey    = ConfigAZURE + "." + ResourceGroupKey
+	ConfigAZUREResourceGroupKey = ConfigAZURE + "." + ResourceGroupKey
 
 	// ConfigAZURETenantIDKey is a config key
-	ConfigAZURETenantIDKey         = ConfigAZURE + "." + TenantIDKey
+	ConfigAZURETenantIDKey = ConfigAZURE + "." + TenantIDKey
 
 	// ConfigAZUREStorageAccountKey is a config key
-	ConfigAZUREStorageAccountKey   = ConfigAZURE + "." + StorageAccount
+	ConfigAZUREStorageAccountKey = ConfigAZURE + "." + StorageAccount
 
 	// ConfigAZUREStorageAccessKeyKey is a config key
 	ConfigAZUREStorageAccessKeyKey = ConfigAZURE + "." + StorageAccessKey
 
 	// ConfigAZUREContainerKey is a config key
-	ConfigAZUREContainerKey        = ConfigAZURE + "." + ContainerKey
+	ConfigAZUREContainerKey = ConfigAZURE + "." + ContainerKey
 
 	// ConfigAZUREClientIDKey is a config key
-	ConfigAZUREClientIDKey         = ConfigAZURE + "." + ClientIDKey
+	ConfigAZUREClientIDKey = ConfigAZURE + "." + ClientIDKey
 
 	// ConfigAZUREClientSecretKey is a config key
-	ConfigAZUREClientSecretKey     = ConfigAZURE + "." + ClientSecretKey
+	ConfigAZUREClientSecretKey = ConfigAZURE + "." + ClientSecretKey
 
 	// ConfigAZURECertPathKey is a config key
-	ConfigAZURECertPathKey         = ConfigAZURE + "." + CertPathKey
+	ConfigAZURECertPathKey = ConfigAZURE + "." + CertPathKey
 
 	// ConfigAZUREUseHTTPSKey is a config key
-	ConfigAZUREUseHTTPSKey         = ConfigAZURE + "." + UseHTTPSKey
+	ConfigAZUREUseHTTPSKey = ConfigAZURE + "." + UseHTTPSKey
 
 	// ConfigAZURETagKey is a config key
-	ConfigAZURETagKey              = ConfigAZURE + "." + TagKey
+	ConfigAZURETagKey = ConfigAZURE + "." + TagKey
 )
 
 func init() {
@@ -93,7 +96,8 @@ func init() {
 	r.Key(gofig.String, "", "", "", ConfigAZUREClientSecretKey)
 	r.Key(gofig.String, "", "", "", ConfigAZURECertPathKey)
 	r.Key(gofig.Bool, "", DefaultUseHTTPS, "", ConfigAZUREUseHTTPSKey)
-	r.Key(gofig.String, "", "", "Tag prefix for AZURE naming", ConfigAZURETagKey)
+	r.Key(gofig.String, "", "",
+		"Tag prefix for AZURE naming", ConfigAZURETagKey)
 
 	gofigCore.Register(r)
 }

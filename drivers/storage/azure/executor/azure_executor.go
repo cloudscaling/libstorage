@@ -16,7 +16,7 @@ import (
 	"github.com/codedellemc/libstorage/api/registry"
 	"github.com/codedellemc/libstorage/api/types"
 	"github.com/codedellemc/libstorage/drivers/storage/azure"
-	azureUtils "github.com/codedellemc/libstorage/drivers/storage/azure/utils"
+	"github.com/codedellemc/libstorage/drivers/storage/azure/utils"
 )
 
 // driver is the storage executor for the azure storage driver.
@@ -48,21 +48,20 @@ func (d *driver) Name() string {
 func (d *driver) Supported(
 	ctx types.Context,
 	opts types.Store) (bool, error) {
-	return azureUtils.IsAzureInstance(ctx)
+	return utils.IsAzureInstance(ctx)
 }
 
 // InstanceID returns the instance ID from the current instance from metadata
 func (d *driver) InstanceID(
 	ctx types.Context,
 	opts types.Store) (*types.InstanceID, error) {
-	return azureUtils.InstanceID(ctx)
+	return utils.InstanceID(ctx)
 }
 
 var errNoAvaiDevice = goof.New("no available device")
 var nextDevRe = regexp.MustCompile("^/dev/" +
-	azureUtils.NextDeviceInfo.Prefix +
-        "(" + azureUtils.NextDeviceInfo.Pattern + ")")
-
+	utils.NextDeviceInfo.Prefix +
+	"(" + utils.NextDeviceInfo.Pattern + ")")
 
 // NextDevice returns the next available device.
 func (d *driver) NextDevice(
@@ -70,7 +69,8 @@ func (d *driver) NextDevice(
 	opts types.Store) (string, error) {
 	// All possible device paths on Linux instances are /dev/sd[c-p]
 	letters := []string{
-		"c", "d", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p"}
+		"c", "d", "f", "g", "h", "i", "j", "k", "l", "m", "n",
+		"o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}
 
 	// Find which letters are used for local devices
 	localDeviceNames := make(map[string]bool)
@@ -95,7 +95,7 @@ func (d *driver) NextDevice(
 			continue
 		}
 		return fmt.Sprintf(
-			"/dev/%s%s", azureUtils.NextDeviceInfo.Prefix, letter), nil
+			"/dev/%s%s", utils.NextDeviceInfo.Prefix, letter), nil
 	}
 	return "", errNoAvaiDevice
 }
@@ -111,7 +111,8 @@ func (d *driver) LocalDevices(
 
 	f, err := os.Open(procPartitions)
 	if err != nil {
-		return nil, goof.WithError("error reading "+procPartitions, err)
+		return nil, goof.WithError(
+			"error reading "+procPartitions, err)
 	}
 	defer f.Close()
 

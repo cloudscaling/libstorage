@@ -31,8 +31,7 @@ func checkAzureMarkInFile(ctx types.Context) bool {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		ctx.Debug("Specific file (/var/lib/dhcp/dhclient.eth0.leases) could not be read:")
-		ctx.Debug(err)
+		ctx.Debugf("Specific file %s could not be read: %s", file, err)
 	}
 	return false
 }
@@ -40,7 +39,10 @@ func checkAzureMarkInFile(ctx types.Context) bool {
 // IsAzureInstance returns a flag indicating whether the executing host
 // is an Azure instance .
 func IsAzureInstance(ctx types.Context) (bool, error) {
-	// http://blog.mszcool.com/index.php/2015/04/detecting-if-a-virtual-machine-runs-in-microsoft-azure-linux-windows-to-protect-your-software-when-distributed-via-the-azure-marketplace/
+	// http://blog.mszcool.com/index.php/2015/04/
+	// detecting-if-a-virtual-machine-runs-in-microsoft-azure-linux-
+	// windows-to-protect-your-software-when-distributed-via-the-
+	// azure-marketplace/
 	if id := os.Getenv("AZURE_INSTANCE_ID"); id != "" {
 		return true, nil
 	}
@@ -57,10 +59,12 @@ func InstanceID(ctx types.Context) (*types.InstanceID, error) {
 			return nil, err
 		}
 		if !isAzure {
-			return nil, goof.New("Executing outside of Instance. InstanceID could not be obtained.")
+			return nil, goof.New("Executing outside of Instance.")
 		}
 
-		// UUID can be obtained as descried in https://azure.microsoft.com/en-us/blog/accessing-and-using-azure-vm-unique-id/
+		// UUID can be obtained as descried in
+		// https://azure.microsoft.com/en-us/blog/accessing-and-using-
+		// azure-vm-unique-id/
 		// but this code will use hostname as ID
 
 		hostname, err = os.Hostname()
